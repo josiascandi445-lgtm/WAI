@@ -7,19 +7,15 @@ const COMMANDS_DIR = path.join(__dirname, "../commands");
 const PREFIX = process.env.PREFIX ?? ".";
 const BOT_NAME = process.env.BOT_NAME ?? "Bot";
 
-// Cache de comandos carregados
+// Cache de comandos
 const commandMap = new Map();
 let commandsLoaded = false;
 
-/**
- * Carrega todos os comandos da pasta /commands dinamicamente.
- * Cada ficheiro deve exportar { name: string, execute: Function }
- */
 async function loadCommands() {
   if (commandsLoaded) return;
 
   if (!fs.existsSync(COMMANDS_DIR)) {
-    console.warn("[Commands] Pasta /commands não encontrada. Nenhum comando carregado.");
+    console.warn("[Commands] Pasta /commands não encontrada.");
     commandsLoaded = true;
     return;
   }
@@ -27,45 +23,43 @@ async function loadCommands() {
   const files = fs.readdirSync(COMMANDS_DIR).filter((f) => f.endsWith(".js"));
 
   if (files.length === 0) {
-    console.warn("[Commands] Nenhum ficheiro .js encontrado em /commands.");
+    console.warn("[Commands] Nenhum comando encontrado.");
     commandsLoaded = true;
     return;
   }
 
   for (const file of files) {
     try {
-      const mod = await import(path.join(COMMANDS_DIR, file));
+      console.log(`[Commands] A tentar carregar: ${file}`);
+
+      const filePath = path.join(COMMANDS_DIR, file);
+      const mod = await import(`file://${filePath}`);
+
       const command = mod.default ?? mod;
 
-      if (!command.name || typeof command.execute !== "function") {
-        console.warn(`[Commands] Ficheiro ignorado (sem name/execute): ${file}`);
+      if (!command?.name || typeof command.execute !== "function") {
+        console.warn(`[Commands] Ignorado (inválido): ${file}`);
         continue;
       }
 
       commandMap.set(command.name.toLowerCase(), command);
 
-      // Suporte a aliases opcionais
       if (Array.isArray(command.aliases)) {
         for (const alias of command.aliases) {
           commandMap.set(alias.toLowerCase(), command);
         }
       }
 
-      console.log(`[Commands] ✅ Comando carregado: ${PREFIX}${command.name}`);
+      console.log(`[Commands] ✅ Carregado: ${command.name}`);
     } catch (err) {
-      console.error(`[Commands] Erro ao carregar ${file}:`, err.message);
+      console.error(`[Commands] ERRO ao carregar ${file}:`, err);
     }
   }
 
   commandsLoaded = true;
-  console.log(`[Commands] Total de comandos: ${commandMap.size}`);
+  console.log(`[Commands] Total: ${commandMap.size}`);
 }
 
-/**
- * Extrai o texto da mensagem independentemente do tipo (texto, imagem com legenda, etc.)
- * @param {object} message - msg.message
- * @returns {string}
- */
 function extractText(message) {
   return (
     message?.conversation ??
@@ -78,23 +72,11 @@ function extractText(message) {
   );
 }
 
-/**
- * Extrai o JID do remetente real (funciona em grupos e privado)
- * @param {object} msg
- * @returns {string}
- */
 function getSender(msg) {
   return msg.key.participant ?? msg.key.remoteJid;
 }
 
-/**
- * Handler central de mensagens.
- * Chamado para cada mensagem recebida.
- * @param {import("@whiskeysockets/baileys").WASocket} sock
- * @param {object} msg
- */
 export async function handleMessage(sock, msg) {
-  // Garante que os comandos estão carregados
   await loadCommands();
 
   const jid = msg.key.remoteJid;
@@ -102,36 +84,51 @@ export async function handleMessage(sock, msg) {
   const isGroup = jid.endsWith("@g.us");
   const body = extractText(msg.message).trim();
 
-  if (!body) return; // Ignora mensagens sem texto
+  if (!body) return;
 
-  console.log(
-    `[Message] ${isGroup ? "Grupo" : "Privado"} | De: ${sender} | Texto: "${body}"`
-  );
+  console.log(`[Message] ${sender}: ${body}`);
 
-  // Verifica se é um comando
   if (!body.startsWith(PREFIX)) return;
 
   const [rawCmd, ...args] = body.slice(PREFIX.length).trim().split(/\s+/);
   const cmdName = rawCmd.toLowerCase();
+
   const command = commandMap.get(cmdName);
 
   if (!command) {
-    console.log(`[Commands] Comando desconhecido: ${PREFIX}${cmdName}`);
-    // Opcional: comentar as 3 linhas abaixo para não responder a comandos inválidos
-    await sock.sendMessage(jid, {
-      text: `❓ Comando *${PREFIX}${cmdName}* não encontrado.\nUsa *${PREFIX}help* para ver os comandos disponíveis.`,
-    }, { quoted: msg });
+    console.log(`[Commands] Desconhecido: ${cmdName}`);
+    await sock.sendMessage(
+      jid,
+      {
+        text: `❓ Comando *${PREFIX}${cmdName}* não existe.`,
+      },
+      { quoted: msg }
+    );
     return;
   }
 
-  console.log(`[Commands] A executar: ${PREFIX}${command.name} | Args: [${args.join(", ")}]`);
+  console.log(`[Commands] Exec: ${cmdName}`);
 
   try {
-    await command.execute({ sock, msg, jid, sender, args, isGroup, prefix: PREFIX, botName: BOT_NAME });
+    await command.execute({
+      sock,
+      msg,
+      jid,
+      sender,
+      args,
+      isGroup,
+      prefix: PREFIX,
+      botName: BOT_NAME,
+    });
   } catch (err) {
-    console.error(`[Commands] Erro ao executar ${PREFIX}${command.name}:`, err.message);
-    await sock.sendMessage(jid, {
-      text: `⚠️ Ocorreu um erro ao executar o comando *${PREFIX}${command.name}*.`,
-    }, { quoted: msg });
+    console.error(`[Commands] Erro em ${cmdName}:`, err);
+
+    await sock.sendMessage(
+      jid,
+      {
+        text: `⚠️ Erro ao executar *${cmdName}*`,
+      },
+      { quoted: msg }
+    );
   }
 }
