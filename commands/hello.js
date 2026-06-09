@@ -11,7 +11,7 @@ export default {
 
 Eu sou o *${botName}*.
 Estou online e a funcionar insolente.
-Qualquer dúvida pergunta para min ou para o Bug.
+Qualquer dúvida pergunta para mim ou para o Bug.
 
 🤖 Bem-vindo, ${user}.
 Não teste a paciência de um zenin
