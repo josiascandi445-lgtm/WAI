@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: whatsapp-bot
+    env: node
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: PAIRING_NUMBER
+        sync: false   # define manualmente no painel do Render
+      - key: PREFIX
+        value: "."
+      - key: BOT_NAME
+        value: "MyBot"
+    disk:
+      name: session-storage
+      mountPath: /opt/render/project/src/session
+      sizeGB: 1
