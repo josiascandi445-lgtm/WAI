@@ -30,15 +30,17 @@ async function loadCommands() {
 
   for (const file of files) {
     try {
-      console.log(`[Commands] A tentar carregar: ${file}`);
+      console.log(`[Commands] A carregar: ${file}`);
 
       const filePath = path.join(COMMANDS_DIR, file);
-      const mod = await import(`file://${filePath}`);
+
+      // IMPORT correto para ESModules no Render
+      const mod = await import(`file://${filePath}?v=${Date.now()}`);
 
       const command = mod.default ?? mod;
 
       if (!command?.name || typeof command.execute !== "function") {
-        console.warn(`[Commands] Ignorado (inválido): ${file}`);
+        console.warn(`[Commands] Ignorado inválido: ${file}`);
         continue;
       }
 
@@ -97,6 +99,7 @@ export async function handleMessage(sock, msg) {
 
   if (!command) {
     console.log(`[Commands] Desconhecido: ${cmdName}`);
+
     await sock.sendMessage(
       jid,
       {
@@ -104,6 +107,7 @@ export async function handleMessage(sock, msg) {
       },
       { quoted: msg }
     );
+
     return;
   }
 
