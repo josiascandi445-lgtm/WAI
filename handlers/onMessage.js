@@ -7,7 +7,6 @@ const COMMANDS_DIR = path.join(__dirname, "../commands");
 const PREFIX = process.env.PREFIX ?? ".";
 const BOT_NAME = process.env.BOT_NAME ?? "Bot";
 
-// Cache de comandos
 const commandMap = new Map();
 let commandsLoaded = false;
 
@@ -76,8 +75,6 @@ export async function handleMessage(sock, msg) {
 
   console.log(`[Message] ${sender}: ${body}`);
 
-  // ❌ ANTI-LINK REMOVIDO COMPLETAMENTE
-
   if (!body.startsWith(PREFIX)) return;
 
   const [rawCmd, ...args] = body.slice(PREFIX.length).trim().split(/\s+/);
@@ -88,9 +85,7 @@ export async function handleMessage(sock, msg) {
   if (!command) {
     await sock.sendMessage(
       jid,
-      {
-        text: `❓ Comando *${PREFIX}${cmdName}* não existe.`,
-      },
+      { text: `❓ Comando *${PREFIX}${cmdName}* não existe.` },
       { quoted: msg }
     );
     return;
@@ -112,10 +107,8 @@ export async function handleMessage(sock, msg) {
 
     await sock.sendMessage(
       jid,
-      {
-        text: `⚠️ Erro ao executar *${cmdName}*`,
-      },
+      { text: `⚠️ Erro ao executar *${cmdName}*` },
       { quoted: msg }
     );
   }
-                                                    }
+}
