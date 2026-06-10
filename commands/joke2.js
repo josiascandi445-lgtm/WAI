@@ -1,62 +1,46 @@
 export default {
   name: "joke2",
-  description: "Piadas em português (versão estável)",
+  description: "Piadas em português (API estável)",
 
   async execute({ sock, jid, msg }) {
 
-    const subreddits = [
-      "memesbr",
-      "brasil",
-      "PORTUGALCARALHO"
-    ];
-
     try {
-      const randomSub = subreddits[Math.floor(Math.random() * subreddits.length)];
+      // 🇵🇹 tenta português primeiro
+      const res = await fetch("https://v2.jokeapi.dev/joke/Any?lang=pt&type=twopart");
 
-      const res = await fetch(
-        `https://www.reddit.com/r/${randomSub}/hot.json?limit=50`,
-        {
-          headers: {
-            "User-Agent": "Mozilla/5.0"
-          }
-        }
-      );
+      const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+      // ❌ fallback se API não entregar português real
+      if (!data || data.error) {
+        throw new Error("API falhou");
       }
 
-      const json = await res.json();
+      let jokeText;
 
-      const posts = json?.data?.children
-        ?.map(p => p.data)
-        ?.filter(p =>
-          !p.over_18 &&
-          (p.selftext || p.title)
-        ) || [];
-
-      if (!posts.length) {
-        return sock.sendMessage(jid, {
-          text: "❌ Não encontrei piadas em português agora. tenta outra vez."
-        }, { quoted: msg });
+      if (data.type === "single") {
+        jokeText = `😂 ${data.joke}`;
+      } else {
+        jokeText = `😂 ${data.setup}\n\n😏 ${data.delivery}`;
       }
-
-      const joke = posts[Math.floor(Math.random() * posts.length)];
-
-      const text =
-`😂 ${joke.title}
-
-${joke.selftext || "😐 (sem texto, só humor visual)"}`;
 
       await sock.sendMessage(jid, {
-        text
+        text: jokeText
       }, { quoted: msg });
 
     } catch (err) {
       console.log("joke2 error:", err);
 
+      // 🔥 fallback local (NUNCA falha)
+      const fallback = [
+        "😂 Porque é que o programador foi ao médico? Porque tinha bugs na cabeça.",
+        "😂 Eu não procrastino… eu faço decisões estratégicas de última hora.",
+        "😂 A vida é como código… se funciona, não mexas. Se não funciona, culpa o JavaScript."
+      ];
+
+      const joke = fallback[Math.floor(Math.random() * fallback.length)];
+
       await sock.sendMessage(jid, {
-        text: "💥 falha ao buscar piadas PT (Reddit bloqueou ou falhou)"
+        text: joke
       }, { quoted: msg });
     }
   }
