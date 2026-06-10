@@ -3,20 +3,34 @@ export default {
   aliases: ["ola", "hi", "salve"],
   description: "Mensagem de saudação do bot",
 
-  async execute({ sock, msg, jid, sender, botName }) {
+  async execute({ sock, msg, jid, sender, botName, prefix }) {
     const user = sender.split("@")[0];
 
     const text =
-`👋 Olá!
+`╭━━━〔 🤖 ${botName} 〕━━━╮
+┃
+┃ 👋 Olá, ${user}
+┃
+┃ Estou online e operacional.
+┃ Pronto para executar comandos,
+┃ responder dúvidas e ajudar no que for necessário.
+┃ Não gravo nome de macho
+┃
+┃ ⚙️ Prefixo atual: ${prefix}
+┃ 📌 Use ${prefix}help para ver comandos disponíveis
+┃
+┃ ━━━━━━━━━━━━━━━━━━━
+┃ 🔹 Status: Online
+┃ 🔹 Modo: Ativo
+┃ 🔹 Dono: Bug
+┃
+┃ 💡 Desenvolvido para automação e suporte
+╰━━━━━━━━━━━━━━━━━━━━╯`;
 
-Eu sou o *${botName}*.
-Estou online e a funcionar insolente.
-Qualquer dúvida pergunta para mim ou para o Bug.
-
-🤖 Bem-vindo, ${user}.
-Não teste a paciência de um zenin
-Se estiveres a testar-me, parabéns… funciono (às vezes).`;
-
-    await sock.sendMessage(jid, { text }, { quoted: msg });
+    await sock.sendMessage(
+      jid,
+      { text },
+      { quoted: msg }
+    );
   },
 };
