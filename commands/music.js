@@ -1,110 +1,65 @@
+import yts from "yt-search";
 import ytdl from "ytdl-core";
-import { search } from "yt-search";
+import fs from "fs";
+import path from "path";
+import ffmpeg from "fluent-ffmpeg";
+import ffmpegPath from "ffmpeg-static";
 
-export default {
-  name: "music",
-  aliases: ["song", "audio"],
-  description: "Baixa e envia música via YouTube",
+ffmpeg.setFfmpegPath(ffmpegPath);
 
-  async execute({ sock, jid, msg, args }) {
-    if (!args.length) {
-      return sock.sendMessage(
-        jid,
-        { text: "❌ Usa: .music nome da música" },
-        { quoted: msg }
-      );
+export default async function music(sock, msg, args) {
+    const text = args.join(" ");
+    if (!text) {
+        return sock.sendMessage(msg.key.remoteJid, {
+            text: "❌ Usa assim: .music nome da música"
+        });
     }
-
-    const query = args.join(" ");
-
-    await sock.sendMessage(
-      jid,
-      { text: `🔎 A procurar: ${query}` },
-      { quoted: msg }
-    );
 
     try {
-      const result = await search(query);
-      const video = result?.videos?.[0];
+        // 1. Search
+        const search = await yts(text);
+        const video = search.videos[0];
 
-      if (!video) {
-        return sock.sendMessage(
-          jid,
-          { text: "❌ Nada encontrado." },
-          { quoted: msg }
-        );
-      }
-
-      const url = video.url;
-
-      console.log("[music] vídeo:", video.title);
-      console.log("[music] url:", url);
-
-      if (!ytdl.validateURL(url)) {
-        return sock.sendMessage(
-          jid,
-          { text: "❌ URL inválido do YouTube." },
-          { quoted: msg }
-        );
-      }
-
-      await sock.sendMessage(
-        jid,
-        { text: "🎵 A preparar áudio..." },
-        { quoted: msg }
-      );
-
-      const stream = ytdl(url, {
-        filter: "audioonly",
-        quality: "highestaudio",
-        requestOptions: {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-            "Accept-Language": "en-US,en;q=0.9",
-            Referer: "https://www.youtube.com/"
-          }
+        if (!video) {
+            return sock.sendMessage(msg.key.remoteJid, {
+                text: "❌ Não encontrei nada."
+            });
         }
-      });
 
-      const chunks = [];
-      let total = 0;
+        const url = video.url;
 
-      for await (const chunk of stream) {
-        total += chunk.length;
-        chunks.push(chunk);
-      }
+        const fileName = `music_${Date.now()}.mp3`;
+        const filePath = path.resolve("./tmp", fileName);
 
-      console.log("[music] bytes recebidos:", total);
+        if (!fs.existsSync("./tmp")) fs.mkdirSync("./tmp");
 
-      if (total === 0) {
-        throw new Error("Stream vazio do YouTube");
-      }
+        // 2. Download + convert
+        const stream = ytdl(url, {
+            filter: "audioonly",
+            quality: "highestaudio"
+        });
 
-      const buffer = Buffer.concat(chunks);
+        ffmpeg(stream)
+            .audioBitrate(128)
+            .save(filePath)
+            .on("end", async () => {
 
-      await sock.sendMessage(
-        jid,
-        {
-          audio: buffer,
-          mimetype: "audio/mpeg",
-          ptt: true
-        },
-        { quoted: msg }
-      );
+                const audio = fs.readFileSync(filePath);
 
-      console.log("[music] áudio enviado");
+                await sock.sendMessage(msg.key.remoteJid, {
+                    audio: audio,
+                    mimetype: "audio/mp4",
+                    ptt: true // voice note style
+                });
+
+                fs.unlinkSync(filePath);
+            });
 
     } catch (err) {
-      console.error("[music] erro completo:", err);
+        console.log("music error:", err);
 
-      await sock.sendMessage(
-        jid,
-        {
-          text: `⚠️ Erro: ${err?.message || err}`
-        },
-        { quoted: msg }
-      );
+        sock.sendMessage(msg.key.remoteJid, {
+            text: "💥 Erro ao baixar música."
+        });
     }
-  }
-};
+}
