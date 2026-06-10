@@ -6,8 +6,7 @@
  *  2. Iniciar conexão WhatsApp via Baileys
  *  3. Gerir erros não capturados
  */
-process.on("unhandledRejection", console.log);
-process.on("uncaughtException", console.log);
+
 import "dotenv/config"; // carrega .env se existir (dev local)
 import express from "express";
 import { connectToWhatsApp } from "./lib/whatsapp.js";
