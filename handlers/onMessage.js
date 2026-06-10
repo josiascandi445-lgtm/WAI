@@ -3,16 +3,6 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { handleAntiLink } from "../lib/antilink.js";
 
-const blocked = await handleAntiLink({
-  sock,
-  msg,
-  jid,
-  sender,
-  text: body,
-  isGroup
-});
-
-if (blocked) return;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COMMANDS_DIR = path.join(__dirname, "../commands");
 const PREFIX = process.env.PREFIX ?? ".";
@@ -33,25 +23,14 @@ async function loadCommands() {
 
   const files = fs.readdirSync(COMMANDS_DIR).filter((f) => f.endsWith(".js"));
 
-  if (files.length === 0) {
-    console.warn("[Commands] Nenhum comando encontrado.");
-    commandsLoaded = true;
-    return;
-  }
-
   for (const file of files) {
     try {
-      console.log(`[Commands] A carregar: ${file}`);
-
       const filePath = path.join(COMMANDS_DIR, file);
-
-      // IMPORT correto para ESModules no Render
       const mod = await import(`file://${filePath}?v=${Date.now()}`);
 
       const command = mod.default ?? mod;
 
       if (!command?.name || typeof command.execute !== "function") {
-        console.warn(`[Commands] Ignorado inválido: ${file}`);
         continue;
       }
 
@@ -62,15 +41,12 @@ async function loadCommands() {
           commandMap.set(alias.toLowerCase(), command);
         }
       }
-
-      console.log(`[Commands] ✅ Carregado: ${command.name}`);
     } catch (err) {
       console.error(`[Commands] ERRO ao carregar ${file}:`, err);
     }
   }
 
   commandsLoaded = true;
-  console.log(`[Commands] Total: ${commandMap.size}`);
 }
 
 function extractText(message) {
@@ -101,6 +77,18 @@ export async function handleMessage(sock, msg) {
 
   console.log(`[Message] ${sender}: ${body}`);
 
+  // 💥 ANTI-LINK TEM DE ESTAR AQUI DENTRO
+  const blocked = await handleAntiLink({
+    sock,
+    msg,
+    jid,
+    sender,
+    text: body,
+    isGroup
+  });
+
+  if (blocked) return;
+
   if (!body.startsWith(PREFIX)) return;
 
   const [rawCmd, ...args] = body.slice(PREFIX.length).trim().split(/\s+/);
@@ -109,8 +97,6 @@ export async function handleMessage(sock, msg) {
   const command = commandMap.get(cmdName);
 
   if (!command) {
-    console.log(`[Commands] Desconhecido: ${cmdName}`);
-
     await sock.sendMessage(
       jid,
       {
@@ -118,11 +104,8 @@ export async function handleMessage(sock, msg) {
       },
       { quoted: msg }
     );
-
     return;
   }
-
-  console.log(`[Commands] Exec: ${cmdName}`);
 
   try {
     await command.execute({
