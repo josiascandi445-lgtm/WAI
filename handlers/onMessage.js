@@ -1,7 +1,6 @@
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { handleAntiLink } from "../lib/antilink.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COMMANDS_DIR = path.join(__dirname, "../commands");
@@ -77,17 +76,7 @@ export async function handleMessage(sock, msg) {
 
   console.log(`[Message] ${sender}: ${body}`);
 
-  // 💥 ANTI-LINK TEM DE ESTAR AQUI DENTRO
-  const blocked = await handleAntiLink({
-    sock,
-    msg,
-    jid,
-    sender,
-    text: body,
-    isGroup
-  });
-
-  if (blocked) return;
+  // ❌ ANTI-LINK REMOVIDO COMPLETAMENTE
 
   if (!body.startsWith(PREFIX)) return;
 
@@ -129,4 +118,4 @@ export async function handleMessage(sock, msg) {
       { quoted: msg }
     );
   }
-}
+                                                    }
