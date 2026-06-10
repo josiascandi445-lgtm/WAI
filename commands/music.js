@@ -37,6 +37,9 @@ export default {
 
       const url = video.url;
 
+      console.log("[music] vídeo:", video.title);
+      console.log("[music] url:", url);
+
       if (!ytdl.validateURL(url)) {
         return sock.sendMessage(
           jid,
@@ -58,26 +61,27 @@ export default {
           headers: {
             "User-Agent":
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-            "Accept-Language": "en-US,en;q=0.9"
+            "Accept-Language": "en-US,en;q=0.9",
+            Referer: "https://www.youtube.com/"
           }
         }
       });
 
       const chunks = [];
+      let total = 0;
 
       for await (const chunk of stream) {
+        total += chunk.length;
         chunks.push(chunk);
       }
 
-      const buffer = Buffer.concat(chunks);
+      console.log("[music] bytes recebidos:", total);
 
-      if (!buffer || buffer.length === 0) {
-        return sock.sendMessage(
-          jid,
-          { text: "⚠️ Não foi possível gerar o áudio." },
-          { quoted: msg }
-        );
+      if (total === 0) {
+        throw new Error("Stream vazio do YouTube");
       }
+
+      const buffer = Buffer.concat(chunks);
 
       await sock.sendMessage(
         jid,
@@ -89,12 +93,16 @@ export default {
         { quoted: msg }
       );
 
+      console.log("[music] áudio enviado");
+
     } catch (err) {
-      console.error("[music] erro:", err);
+      console.error("[music] erro completo:", err);
 
       await sock.sendMessage(
         jid,
-        { text: "⚠️ Erro ao processar música." },
+        {
+          text: `⚠️ Erro: ${err?.message || err}`
+        },
         { quoted: msg }
       );
     }
