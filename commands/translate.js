@@ -1,16 +1,16 @@
 export default {
   name: "translate",
-  description: "Traduz texto",
 
   async execute({ sock, jid, msg, args }) {
-    if (args.length < 2) {
+    if (args.length < 3) {
       return sock.sendMessage(jid, {
-        text: "❌ Usa: .translate pt en texto"
+        text: "❌ Usa: .translate en pt hello world"
       }, { quoted: msg });
     }
 
-    const [from, to, ...textArr] = args;
-    const text = textArr.join(" ");
+    const from = args[0];
+    const to = args[1];
+    const text = args.slice(2).join(" ");
 
     try {
       const res = await fetch(
