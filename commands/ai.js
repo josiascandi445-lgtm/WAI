@@ -1,6 +1,5 @@
 export default {
   name: "ai",
-  description: "Responde perguntas simples",
 
   async execute({ sock, jid, msg, args }) {
     if (!args.length) {
@@ -9,20 +8,28 @@ export default {
       }, { quoted: msg });
     }
 
-    const question = args.join(" ");
+    const q = args.join(" ");
 
     try {
       const res = await fetch(
-        `https://api.duckduckgo.com/?q=${encodeURIComponent(question)}&format=json&no_html=1`
+        `https://api.duckduckgo.com/?q=${encodeURIComponent(q)}&format=json&no_html=1&no_redirect=1`
       );
 
       const data = await res.json();
 
-      const answer =
+      let answer =
         data.AbstractText ||
         data.Answer ||
-        data.Definition ||
-        "🤖 Não encontrei uma resposta direta, mas posso ajudar a reformular a pergunta.";
+        data.Definition;
+
+      if (!answer && data.RelatedTopics?.length) {
+        const t = data.RelatedTopics.find(x => x.Text);
+        answer = t?.Text;
+      }
+
+      if (!answer) {
+        answer = "Não tenho uma resposta direta para isso, mas posso ajudar se reformulares a pergunta.";
+      }
 
       await sock.sendMessage(jid, {
         text: `🤖 ${answer}`
