@@ -1,26 +1,42 @@
-/**
- * Comando: .info
- * Mostra informações sobre o utilizador e o chat atual.
- */
 export default {
   name: "info",
-  description: "Mostra informações sobre ti e o chat atual.",
+  description: "Mostra informações úteis sobre o utilizador e chat.",
 
   async execute({ sock, msg, jid, sender, isGroup, botName }) {
+
     const uptime = process.uptime();
     const hours = Math.floor(uptime / 3600);
     const minutes = Math.floor((uptime % 3600) / 60);
     const seconds = Math.floor(uptime % 60);
 
-    const text =
-      `ℹ️ *Informações*\n\n` +
-      `👤 *O teu JID:* ${sender}\n` +
-      `💬 *Chat:* ${isGroup ? "Grupo" : "Privado"}\n` +
-      `🆔 *JID do chat:* ${jid}\n\n` +
-      `🤖 *Bot:* ${botName}\n` +
-      `⏱️ *Uptime:* ${hours}h ${minutes}m ${seconds}s\n` +
-      `🖥️ *Node.js:* ${process.version}`;
+    // 🔥 limpa o número (remove @s.whatsapp.net)
+    const number = sender?.split("@")[0];
 
-    await sock.sendMessage(jid, { text }, { quoted: msg });
-  },
+    let groupName = "Privado";
+
+    // tenta obter nome do grupo (se for grupo)
+    if (isGroup) {
+      try {
+        const metadata = await sock.groupMetadata(jid);
+        groupName = metadata.subject;
+      } catch (e) {
+        groupName = "Grupo (não foi possível obter nome)";
+      }
+    }
+
+    const text =
+`ℹ️ *Informações úteis*
+
+👤 *Utilizador:* ${number}
+💬 *Tipo:* ${isGroup ? "Grupo" : "Privado"}
+🏷️ *Chat:* ${groupName}
+
+🤖 *Bot:* ${botName || "Bot"}
+⏱️ *Uptime:* ${hours}h ${minutes}m ${seconds}s
+🧠 *Node.js:* ${process.version}`;
+
+    await sock.sendMessage(jid, {
+      text
+    }, { quoted: msg });
+  }
 };
