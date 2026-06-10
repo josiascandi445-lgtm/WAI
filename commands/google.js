@@ -1,6 +1,6 @@
 export default {
   name: "google",
-  description: "Pesquisa e devolve resposta resumida",
+  description: "Pesquisa inteligente com resposta em texto",
 
   async execute({ sock, jid, msg, args }) {
 
@@ -13,24 +13,32 @@ export default {
     const query = args.join(" ");
 
     try {
-      // DuckDuckGo Instant Answer API (sem bloqueios chatos)
       const res = await fetch(
         `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1`
       );
 
       const data = await res.json();
 
+      // 🧠 1. respostas diretas
       let answer =
         data.AbstractText ||
         data.Answer ||
-        data.Definition ||
-        null;
+        data.Definition;
 
-      // fallback se não houver resposta direta
+      // 🧠 2. fallback inteligente (RelatedTopics)
+      if (!answer && data.RelatedTopics?.length) {
+        const topic = data.RelatedTopics.find(t => t.Text);
+
+        if (topic?.Text) {
+          answer = topic.Text;
+        }
+      }
+
+      // ❌ nada encontrado mesmo
       if (!answer) {
         return sock.sendMessage(jid, {
           text:
-`🔎 Resultado para: ${query}
+`🔎 ${query}
 
 ❌ Não encontrei resposta direta.
 
@@ -51,7 +59,7 @@ ${answer}`
       console.log("google error:", err);
 
       await sock.sendMessage(jid, {
-        text: "💥 Erro ao pesquisar."
+        text: "💥 erro ao pesquisar"
       }, { quoted: msg });
     }
   }
