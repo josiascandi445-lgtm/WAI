@@ -1,5 +1,5 @@
 export default {
-  name: "meme",
+  name: "meme2",
 
   async execute({ sock, jid, msg }) {
     const res = await fetch("https://meme-api.com/gimme");
