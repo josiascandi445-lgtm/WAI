@@ -20,29 +20,41 @@ export default {
 
       if (!video) {
         return sock.sendMessage(jid, {
-          text: "❌ Não encontrei música"
+          text: "❌ Não encontrei nenhuma música."
         }, { quoted: msg });
       }
 
-      const text =
-`🎧 *MÚSICA ENCONTRADA*
+      const views = video.views
+        ? Number(video.views).toLocaleString()
+        : "N/A";
 
-📌 ${video.title}
-👤 ${video.author.name}
-⏱️ ${video.timestamp || "N/A"}
-👀 ${video.views}
+      const caption =
+`🎵 *MÚSICA ENCONTRADA*
+
+📌 *${video.title}*
+
+👤 Canal: ${video.author.name}
+⏱️ Duração: ${video.timestamp || "N/A"}
+👀 Visualizações: ${views}
 
 🔗 ${video.url}`;
 
-      await sock.sendMessage(jid, {
-        text
-      }, { quoted: msg });
+      await sock.sendMessage(
+        jid,
+        {
+          image: {
+            url: video.thumbnail
+          },
+          caption
+        },
+        { quoted: msg }
+      );
 
     } catch (err) {
-      console.log(err);
+      console.log("[song] erro:", err);
 
       await sock.sendMessage(jid, {
-        text: "💥 erro ao procurar música"
+        text: "💥 Erro ao procurar música."
       }, { quoted: msg });
     }
   }
