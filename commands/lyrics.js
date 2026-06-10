@@ -1,16 +1,15 @@
 export default {
   name: "lyrics",
-  description: "Busca letras",
 
   async execute({ sock, jid, msg, args }) {
     if (args.length < 2) {
       return sock.sendMessage(jid, {
-        text: "❌ Usa: .lyrics artista musica"
+        text: "❌ Usa: .lyrics artista música"
       }, { quoted: msg });
     }
 
-    const [artist, ...songArr] = args;
-    const song = songArr.join(" ");
+    const artist = args.shift();
+    const song = args.join(" ");
 
     try {
       const res = await fetch(
@@ -27,7 +26,7 @@ export default {
 
     } catch (err) {
       await sock.sendMessage(jid, {
-        text: "❌ não encontrei a letra"
+        text: "❌ não encontrei essa letra (tenta outro nome ou artista)"
       }, { quoted: msg });
     }
   }
