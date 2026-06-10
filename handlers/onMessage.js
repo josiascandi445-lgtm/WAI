@@ -1,7 +1,18 @@
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { handleAntiLink } from "../lib/antilink.js";
 
+const blocked = await handleAntiLink({
+  sock,
+  msg,
+  jid,
+  sender,
+  text: body,
+  isGroup
+});
+
+if (blocked) return;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COMMANDS_DIR = path.join(__dirname, "../commands");
 const PREFIX = process.env.PREFIX ?? ".";
