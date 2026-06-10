@@ -1,43 +1,33 @@
+const fallback = [
+  { title: "Quando o Wi-Fi cai e tu começas a viver como em 1998", url: "https://i.imgflip.com/1ur9b0.jpg" },
+  { title: "Eu a estudar 5 minutos antes do teste", url: "https://i.imgflip.com/30b1gx.jpg" },
+  { title: "Programador a dizer 'já vai funcionar'", url: "https://i.imgflip.com/26am.jpg" }
+];
+
 export default {
   name: "meme2",
-  description: "Memes em português (estável)",
 
   async execute({ sock, jid, msg }) {
 
     try {
-      // 🧠 1. tenta meme API (estável)
       const res = await fetch("https://meme-api.com/gimme");
       const data = await res.json();
 
-      if (!data || !data.url) {
-        throw new Error("API falhou");
-      }
+      let title = data.title || "";
+
+      // tenta “traduzir” de forma simples (não IA)
+      title = title
+        .replace(/dog/gi, "cão")
+        .replace(/cat/gi, "gato")
+        .replace(/you/gi, "tu");
 
       await sock.sendMessage(jid, {
         image: { url: data.url },
-        caption: `😂 ${data.title || "Meme"}`
+        caption: `😂 ${title}`
       }, { quoted: msg });
 
     } catch (err) {
-      console.log("meme2 error:", err);
-
-      // 💀 fallback em português (NUNCA falha)
-      const fallbackMemes = [
-        {
-          title: "Quando o Wi-Fi cai e tu percebes que tens família",
-          url: "https://i.imgflip.com/1ur9b0.jpg"
-        },
-        {
-          title: "Eu a dizer 'vou dormir cedo' às 3:47 da manhã",
-          url: "https://i.imgflip.com/30b1gx.jpg"
-        },
-        {
-          title: "Programador a dizer 'já vai funcionar' (mentiu)",
-          url: "https://i.imgflip.com/26am.jpg"
-        }
-      ];
-
-      const meme = fallbackMemes[Math.floor(Math.random() * fallbackMemes.length)];
+      const meme = fallback[Math.floor(Math.random() * fallback.length)];
 
       await sock.sendMessage(jid, {
         image: { url: meme.url },
