@@ -7,59 +7,65 @@ import ffmpegPath from "ffmpeg-static";
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-export default async function music(sock, msg, args) {
+export default {
+  name: "music",
+  aliases: ["m"],
+  description: "Toca música do YouTube",
+
+  async execute({ sock, msg, jid, args }) {
     const text = args.join(" ");
+
     if (!text) {
-        return sock.sendMessage(msg.key.remoteJid, {
-            text: "❌ Usa assim: .music nome da música"
-        });
+      return sock.sendMessage(jid, {
+        text: "❌ Usa: .music nome da música"
+      });
     }
 
     try {
-        // 1. Search
-        const search = await yts(text);
-        const video = search.videos[0];
+      const search = await yts(text);
+      const video = search.videos[0];
 
-        if (!video) {
-            return sock.sendMessage(msg.key.remoteJid, {
-                text: "❌ Não encontrei nada."
-            });
-        }
-
-        const url = video.url;
-
-        const fileName = `music_${Date.now()}.mp3`;
-        const filePath = path.resolve("./tmp", fileName);
-
-        if (!fs.existsSync("./tmp")) fs.mkdirSync("./tmp");
-
-        // 2. Download + convert
-        const stream = ytdl(url, {
-            filter: "audioonly",
-            quality: "highestaudio"
+      if (!video) {
+        return sock.sendMessage(jid, {
+          text: "❌ Não encontrei nada."
         });
+      }
 
-        ffmpeg(stream)
-            .audioBitrate(128)
-            .save(filePath)
-            .on("end", async () => {
+      const url = video.url;
 
-                const audio = fs.readFileSync(filePath);
+      const tmpDir = "./tmp";
+      if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
-                await sock.sendMessage(msg.key.remoteJid, {
-                    audio: audio,
-                    mimetype: "audio/mp4",
-                    ptt: true // voice note style
-                });
+      const fileName = `music_${Date.now()}.mp3`;
+      const filePath = path.resolve(tmpDir, fileName);
 
-                fs.unlinkSync(filePath);
-            });
+      const stream = ytdl(url, {
+        filter: "audioonly",
+        quality: "highestaudio"
+      });
+
+      ffmpeg(stream)
+        .audioBitrate(128)
+        .save(filePath)
+        .on("end", async () => {
+
+          const audio = fs.readFileSync(filePath);
+
+          await sock.sendMessage(jid, {
+            audio,
+            mimetype: "audio/mp4",
+            ptt: true
+          });
+
+          fs.unlinkSync(filePath);
+        });
 
     } catch (err) {
-        console.log("music error:", err);
+      console.log("music error:", err);
 
-        sock.sendMessage(msg.key.remoteJid, {
-            text: "💥 Erro ao baixar música."
-        });
+      await sock.sendMessage(jid, {
+        text: "💥 Erro ao baixar música."
+      });
     }
-}
+  }
+};
