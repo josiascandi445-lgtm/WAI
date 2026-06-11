@@ -1,17 +1,44 @@
+# ─────────────────────────────────────────────────────────────────────
+#  render.yaml — Configuração do Render para o WhatsApp Bot
+#
+#  IMPORTANTE sobre o disk mountPath:
+#  O caminho /opt/render/project/src é o directório raiz do projecto
+#  no Render. O /session no final corresponde à pasta session/ do código.
+#  Se mudares o nome do serviço no Render, o mountPath NÃO muda —
+#  o Render usa o caminho físico, não o nome do serviço.
+#
+#  IMPORTANTE sobre o Render Free Tier:
+#  Serviços gratuitos suspendem após 15 min sem tráfego HTTP.
+#  O bot tem self-ping a cada 10 min para evitar a suspensão.
+#  Para comportamento 100% fiável, usa o plano Starter ($7/mês).
+# ─────────────────────────────────────────────────────────────────────
+
 services:
   - type: web
     name: whatsapp-bot
     env: node
+    region: frankfurt   # frankfurt é o mais próximo de Angola/Portugal
+    plan: free          # muda para "starter" para eliminar suspensões
     buildCommand: npm install
     startCommand: node index.js
     envVars:
       - key: PAIRING_NUMBER
-        sync: false   # define manualmente no painel do Render
+        sync: false        # define manualmente no painel do Render
+      - key: OWNER_NUMBER
+        sync: false        # mesmo número ou diferente
+      - key: OWNER_NAME
+        value: "Administrador"
       - key: PREFIX
         value: "."
       - key: BOT_NAME
-        value: "MyBot"
+        value: "WAI Bot"
+      - key: NODE_ENV
+        value: "production"
     disk:
       name: session-storage
+      # mountPath aponta para a pasta session/ dentro do projecto.
+      # /opt/render/project/src é sempre o root do projecto no Render —
+      # NÃO depende do nome do serviço.
       mountPath: /opt/render/project/src/session
       sizeGB: 1
+    healthCheckPath: /health

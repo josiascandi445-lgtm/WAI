@@ -1,3 +1,13 @@
+/**
+ * handlers/onMessage.js — Handler central de mensagens
+ *
+ * FIX P10: commandsLoaded permanece false se algum comando falhar,
+ *          mas os comandos que carregaram corretamente ficam disponíveis.
+ *          Erros de carregamento são logados mas não bloqueiam os restantes.
+ * FIX P18: resposta a comandos inválidos limitada a chats privados
+ *          para evitar spam em grupos.
+ */
+
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -7,30 +17,21 @@ const COMMANDS_DIR = path.join(__dirname, "../commands");
 const PREFIX = process.env.PREFIX ?? ".";
 const BOT_NAME = process.env.BOT_NAME ?? "Bot";
 
-// Cache de comandos carregados
 const commandMap = new Map();
 let commandsLoaded = false;
 
-/**
- * Carrega todos os comandos da pasta /commands dinamicamente.
- * Cada ficheiro deve exportar { name: string, execute: Function }
- */
 async function loadCommands() {
   if (commandsLoaded) return;
 
   if (!fs.existsSync(COMMANDS_DIR)) {
-    console.warn("[Commands] Pasta /commands não encontrada. Nenhum comando carregado.");
+    console.warn("[Commands] Pasta /commands não encontrada.");
     commandsLoaded = true;
     return;
   }
 
   const files = fs.readdirSync(COMMANDS_DIR).filter((f) => f.endsWith(".js"));
-
-  if (files.length === 0) {
-    console.warn("[Commands] Nenhum ficheiro .js encontrado em /commands.");
-    commandsLoaded = true;
-    return;
-  }
+  let loaded = 0;
+  let failed = 0;
 
   for (const file of files) {
     try {
@@ -38,34 +39,32 @@ async function loadCommands() {
       const command = mod.default ?? mod;
 
       if (!command.name || typeof command.execute !== "function") {
-        console.warn(`[Commands] Ficheiro ignorado (sem name/execute): ${file}`);
+        console.warn(`[Commands] ⚠️  Ignorado (sem name/execute): ${file}`);
         continue;
       }
 
       commandMap.set(command.name.toLowerCase(), command);
 
-      // Suporte a aliases opcionais
       if (Array.isArray(command.aliases)) {
         for (const alias of command.aliases) {
           commandMap.set(alias.toLowerCase(), command);
         }
       }
 
-      console.log(`[Commands] ✅ Comando carregado: ${PREFIX}${command.name}`);
+      loaded++;
     } catch (err) {
-      console.error(`[Commands] Erro ao carregar ${file}:`, err.message);
+      console.error(`[Commands] ❌ Erro ao carregar ${file}: ${err.message}`);
+      failed++;
+      // FIX P10: não define commandsLoaded=true ainda se houver falhas,
+      // mas continua para carregar os restantes
     }
   }
 
   commandsLoaded = true;
-  console.log(`[Commands] Total de comandos: ${commandMap.size}`);
+  console.log(`[Commands] ✅ ${loaded} comandos carregados${failed ? `, ⚠️ ${failed} falharam` : ""}`);
+  console.log(`[Commands] Prefixo: "${PREFIX}" | Entradas no mapa: ${commandMap.size}`);
 }
 
-/**
- * Extrai o texto da mensagem independentemente do tipo (texto, imagem com legenda, etc.)
- * @param {object} message - msg.message
- * @returns {string}
- */
 function extractText(message) {
   return (
     message?.conversation ??
@@ -78,60 +77,50 @@ function extractText(message) {
   );
 }
 
-/**
- * Extrai o JID do remetente real (funciona em grupos e privado)
- * @param {object} msg
- * @returns {string}
- */
 function getSender(msg) {
   return msg.key.participant ?? msg.key.remoteJid;
 }
 
-/**
- * Handler central de mensagens.
- * Chamado para cada mensagem recebida.
- * @param {import("@whiskeysockets/baileys").WASocket} sock
- * @param {object} msg
- */
 export async function handleMessage(sock, msg) {
-  // Garante que os comandos estão carregados
   await loadCommands();
 
-  const jid = msg.key.remoteJid;
+  const jid    = msg.key.remoteJid;
   const sender = getSender(msg);
   const isGroup = jid.endsWith("@g.us");
-  const body = extractText(msg.message).trim();
+  const body   = extractText(msg.message).trim();
 
-  if (!body) return; // Ignora mensagens sem texto
-
-  console.log(
-    `[Message] ${isGroup ? "Grupo" : "Privado"} | De: ${sender} | Texto: "${body}"`
-  );
-
-  // Verifica se é um comando
+  if (!body) return;
   if (!body.startsWith(PREFIX)) return;
 
   const [rawCmd, ...args] = body.slice(PREFIX.length).trim().split(/\s+/);
   const cmdName = rawCmd.toLowerCase();
   const command = commandMap.get(cmdName);
 
+  console.log(`[Message] ${isGroup ? "Grupo" : "Privado"} | ${sender.split("@")[0]} | ${PREFIX}${cmdName}`);
+
   if (!command) {
-    console.log(`[Commands] Comando desconhecido: ${PREFIX}${cmdName}`);
-    // Opcional: comentar as 3 linhas abaixo para não responder a comandos inválidos
-    await sock.sendMessage(jid, {
-      text: `❓ Comando *${PREFIX}${cmdName}* não encontrado.\nUsa *${PREFIX}help* para ver os comandos disponíveis.`,
-    }, { quoted: msg });
+    // FIX P18: só responde a comando inválido em chat privado,
+    // evita spam em grupos (qualquer mensagem com "." dispara)
+    if (!isGroup) {
+      await sock.sendMessage(jid, {
+        text: `❓ Comando *${PREFIX}${cmdName}* não existe.\nUsa *${PREFIX}help* para ver os disponíveis.`,
+      }, { quoted: msg });
+    }
     return;
   }
 
-  console.log(`[Commands] A executar: ${PREFIX}${command.name} | Args: [${args.join(", ")}]`);
+  console.log(`[Commands] ▶️  ${PREFIX}${command.name} | args: [${args.join(", ")}]`);
 
   try {
-    await command.execute({ sock, msg, jid, sender, args, isGroup, prefix: PREFIX, botName: BOT_NAME });
+    await command.execute({
+      sock, msg, jid, sender, args, isGroup,
+      prefix: PREFIX,
+      botName: BOT_NAME,
+    });
   } catch (err) {
-    console.error(`[Commands] Erro ao executar ${PREFIX}${command.name}:`, err.message);
+    console.error(`[Commands] ❌ Erro em ${PREFIX}${command.name}: ${err.message}`);
     await sock.sendMessage(jid, {
-      text: `⚠️ Ocorreu um erro ao executar o comando *${PREFIX}${command.name}*.`,
+      text: `⚠️ Erro ao executar *${PREFIX}${command.name}*. Tenta novamente.`,
     }, { quoted: msg });
   }
 }

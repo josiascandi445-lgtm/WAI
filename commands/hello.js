@@ -5,32 +5,26 @@ export default {
 
   async execute({ sock, msg, jid, sender, botName, prefix }) {
     const user = sender.split("@")[0];
+    const ownerName = process.env.OWNER_NAME || "Owner";
 
     const text =
 `╭━━━〔 🤖 ${botName} 〕━━━╮
 ┃
-┃ 👋 Olá, ${user}
+┃ 👋 Olá, ${user}!
 ┃
 ┃ Estou online e operacional.
 ┃ Pronto para executar comandos,
-┃ responder dúvidas e ajudar no que for necessário.
-┃ Não gravo nome de macho
+┃ responder dúvidas e ajudar.
 ┃
-┃ ⚙️ Prefixo atual: ${prefix}
-┃ 📌 Use ${prefix}help para ver comandos disponíveis
+┃ ⚙️  Prefixo: ${prefix}
+┃ 📌 Usa ${prefix}help para ver comandos
 ┃
-┃ ━━━━━━━━━━━━━━━━━━━
+┃ ━━━━━━━━━━━━━━━━━
 ┃ 🔹 Status: Online
-┃ 🔹 Modo: Ativo
-┃ 🔹 Dono: Bug
+┃ 🔹 Dono: ${ownerName}
 ┃
-┃ 💡 Desenvolvido para automação e suporte
-╰━━━━━━━━━━━━━━━━━━━━╯`;
+╰━━━━━━━━━━━━━━━━━━━╯`;
 
-    await sock.sendMessage(
-      jid,
-      { text },
-      { quoted: msg }
-    );
+    await sock.sendMessage(jid, { text }, { quoted: msg });
   },
 };

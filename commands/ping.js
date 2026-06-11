@@ -1,19 +1,19 @@
 /**
  * Comando: .ping
- * Responde com "Pong!" e latência aproximada.
+ * FIX: removido alias "p" que conflitava com play.js
  */
 export default {
   name: "ping",
-  aliases: ["p"],
-  description: "Verifica se o bot está online.",
+  aliases: ["latency"],
+  description: "Verifica se o bot está online e mede latência.",
 
   async execute({ sock, msg, jid }) {
     const start = Date.now();
-    const sent = await sock.sendMessage(jid, { text: "🏓 Calculando latência..." }, { quoted: msg });
+    await sock.sendMessage(jid, { text: "🏓 Pong!" }, { quoted: msg });
     const latency = Date.now() - start;
 
     await sock.sendMessage(jid, {
-      text: `🏓 *Pong!*\n📶 Latência: *${latency}ms*`,
+      text: `🏓 *Pong!*\n📶 Latência: *${latency}ms*\n⚡ Estado: Online`,
     }, { quoted: msg });
   },
 };
