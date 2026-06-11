@@ -1,60 +1,55 @@
-import yts from "yt-search";
+/**
+ * Comando: .song
+ * Pesquisa músicas no YouTube e mostra info (sem download).
+ * ACTUALIZADO: usa yt-dlp para pesquisa.
+ */
+import { ytSearch } from "../lib/ytdlp.js";
+
+function formatDuration(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 export default {
   name: "song",
-  description: "Pesquisa músicas no YouTube",
+  description: "Pesquisa uma música no YouTube e mostra informação",
 
   async execute({ sock, jid, msg, args }) {
-
     if (!args.length) {
       return sock.sendMessage(jid, {
-        text: "❌ Usa: .song nome da música"
+        text: "❌ Usa: .song nome da música\nExemplo: .song Dj Habias"
       }, { quoted: msg });
     }
 
     try {
       const query = args.join(" ");
-      const result = await yts(query);
-
-      const video = result.videos?.[0];
-
-      if (!video) {
-        return sock.sendMessage(jid, {
-          text: "❌ Não encontrei nenhuma música."
-        }, { quoted: msg });
-      }
-
-      const views = video.views
-        ? Number(video.views).toLocaleString()
-        : "N/A";
+      const video = await ytSearch(query);
 
       const caption =
 `🎵 *MÚSICA ENCONTRADA*
 
 📌 *${video.title}*
+👤 Canal: ${video.uploader || "N/A"}
+⏱️ Duração: ${formatDuration(video.duration)}
 
-👤 Canal: ${video.author.name}
-⏱️ Duração: ${video.timestamp || "N/A"}
-👀 Visualizações: ${views}
+🔗 ${video.url}
 
-🔗 ${video.url}`;
+💡 Usa *.music ${query}* para descarregar`;
 
-      await sock.sendMessage(
-        jid,
-        {
-          image: {
-            url: video.thumbnail
-          },
+      if (video.thumbnail) {
+        await sock.sendMessage(jid, {
+          image: { url: video.thumbnail },
           caption
-        },
-        { quoted: msg }
-      );
+        }, { quoted: msg });
+      } else {
+        await sock.sendMessage(jid, { text: caption }, { quoted: msg });
+      }
 
     } catch (err) {
-      console.log("[song] erro:", err);
-
+      console.error("[song] erro:", err.message);
       await sock.sendMessage(jid, {
-        text: "💥 Erro ao procurar música."
+        text: "❌ Não encontrei resultados. Tenta outro nome."
       }, { quoted: msg });
     }
   }
