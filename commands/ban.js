@@ -1,138 +1,63 @@
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
+/**
+ * Comando: .ban @utilizador
+ * Remove um participante do grupo (requer que o bot seja admin).
+ *
+ * NOTA: Este ficheiro foi corrigido — a versão anterior continha
+ * uma cópia duplicada do handler de mensagens (onMessage), o que
+ * causava conflito de estado e comportamento imprevisível.
+ */
+export default {
+  name: "ban",
+  description: "Remove membro do grupo (bot precisa de ser admin)",
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const COMMANDS_DIR = path.join(__dirname, "../commands");
-const PREFIX = process.env.PREFIX ?? ".";
-const BOT_NAME = process.env.BOT_NAME ?? "Bot";
+  async execute({ sock, jid, msg, args, isGroup }) {
+    if (!isGroup) {
+      return sock.sendMessage(jid, {
+        text: "❌ Este comando só funciona em grupos."
+      }, { quoted: msg });
+    }
 
-// Cache de comandos
-const commandMap = new Map();
-let commandsLoaded = false;
+    // Suporta menção (@user) ou número direto
+    const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid ?? [];
+    let targetJid = mentioned[0] ?? null;
 
-async function loadCommands() {
-  if (commandsLoaded) return;
+    if (!targetJid && args.length) {
+      const number = args[0].replace(/[^0-9]/g, "");
+      if (number) targetJid = number + "@s.whatsapp.net";
+    }
 
-  if (!fs.existsSync(COMMANDS_DIR)) {
-    console.warn("[Commands] Pasta /commands não encontrada.");
-    commandsLoaded = true;
-    return;
-  }
+    if (!targetJid) {
+      return sock.sendMessage(jid, {
+        text: "❌ Usa: .ban @utilizador  ou  .ban 244912345678"
+      }, { quoted: msg });
+    }
 
-  const files = fs.readdirSync(COMMANDS_DIR).filter((f) => f.endsWith(".js"));
-
-  if (files.length === 0) {
-    console.warn("[Commands] Nenhum comando encontrado.");
-    commandsLoaded = true;
-    return;
-  }
-
-  for (const file of files) {
     try {
-      console.log(`[Commands] A carregar: ${file}`);
+      // Verifica se o bot é admin antes de tentar
+      const metadata = await sock.groupMetadata(jid);
+      const botJid = sock.user.id.split(":")[0] + "@s.whatsapp.net";
+      const isAdmin = metadata.participants.some(
+        p => p.id === botJid && (p.admin === "admin" || p.admin === "superadmin")
+      );
 
-      const filePath = path.join(COMMANDS_DIR, file);
-
-      // IMPORT correto para ESModules no Render
-      const mod = await import(`file://${filePath}?v=${Date.now()}`);
-
-      const command = mod.default ?? mod;
-
-      if (!command?.name || typeof command.execute !== "function") {
-        console.warn(`[Commands] Ignorado inválido: ${file}`);
-        continue;
+      if (!isAdmin) {
+        return sock.sendMessage(jid, {
+          text: "⚠️ Preciso de ser admin para banir membros."
+        }, { quoted: msg });
       }
 
-      commandMap.set(command.name.toLowerCase(), command);
+      await sock.groupParticipantsUpdate(jid, [targetJid], "remove");
 
-      if (Array.isArray(command.aliases)) {
-        for (const alias of command.aliases) {
-          commandMap.set(alias.toLowerCase(), command);
-        }
-      }
+      const number = targetJid.split("@")[0];
+      await sock.sendMessage(jid, {
+        text: `🚫 Utilizador *${number}* removido do grupo.`
+      }, { quoted: msg });
 
-      console.log(`[Commands] ✅ Carregado: ${command.name}`);
     } catch (err) {
-      console.error(`[Commands] ERRO ao carregar ${file}:`, err);
+      console.error("[ban] erro:", err.message);
+      await sock.sendMessage(jid, {
+        text: "⚠️ Não consegui banir. Verifica se sou admin."
+      }, { quoted: msg });
     }
   }
-
-  commandsLoaded = true;
-  console.log(`[Commands] Total: ${commandMap.size}`);
-}
-
-function extractText(message) {
-  return (
-    message?.conversation ??
-    message?.extendedTextMessage?.text ??
-    message?.imageMessage?.caption ??
-    message?.videoMessage?.caption ??
-    message?.buttonsResponseMessage?.selectedButtonId ??
-    message?.listResponseMessage?.singleSelectReply?.selectedRowId ??
-    ""
-  );
-}
-
-function getSender(msg) {
-  return msg.key.participant ?? msg.key.remoteJid;
-}
-
-export async function handleMessage(sock, msg) {
-  await loadCommands();
-
-  const jid = msg.key.remoteJid;
-  const sender = getSender(msg);
-  const isGroup = jid.endsWith("@g.us");
-  const body = extractText(msg.message).trim();
-
-  if (!body) return;
-
-  console.log(`[Message] ${sender}: ${body}`);
-
-  if (!body.startsWith(PREFIX)) return;
-
-  const [rawCmd, ...args] = body.slice(PREFIX.length).trim().split(/\s+/);
-  const cmdName = rawCmd.toLowerCase();
-
-  const command = commandMap.get(cmdName);
-
-  if (!command) {
-    console.log(`[Commands] Desconhecido: ${cmdName}`);
-
-    await sock.sendMessage(
-      jid,
-      {
-        text: `❓ Comando *${PREFIX}${cmdName}* não existe.`,
-      },
-      { quoted: msg }
-    );
-
-    return;
-  }
-
-  console.log(`[Commands] Exec: ${cmdName}`);
-
-  try {
-    await command.execute({
-      sock,
-      msg,
-      jid,
-      sender,
-      args,
-      isGroup,
-      prefix: PREFIX,
-      botName: BOT_NAME,
-    });
-  } catch (err) {
-    console.error(`[Commands] Erro em ${cmdName}:`, err);
-
-    await sock.sendMessage(
-      jid,
-      {
-        text: `⚠️ Erro ao executar *${cmdName}*`,
-      },
-      { quoted: msg }
-    );
-  }
-}
+};
