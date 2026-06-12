@@ -4,15 +4,12 @@ services:
     env: node
     region: frankfurt
     plan: free
-    # O buildCommand instala dependências npm E descarrega o binário yt-dlp.
-    # O yt-dlp é um binário Python compilado, muito mais fiável que ytdl-core
-    # em IPs de servidores cloud onde o YouTube bloqueia activamente.
     buildCommand: |
       npm install &&
       mkdir -p bin &&
       curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp &&
       chmod +x bin/yt-dlp &&
-      echo "yt-dlp version:" && bin/yt-dlp --version
+      echo "yt-dlp:" && bin/yt-dlp --version
     startCommand: node index.js
     envVars:
       - key: PAIRING_NUMBER
@@ -24,7 +21,7 @@ services:
       - key: PREFIX
         value: "."
       - key: BOT_NAME
-        value: "WAI Bot"
+        value: "Toji"
       - key: NODE_ENV
         value: "production"
     disk:
