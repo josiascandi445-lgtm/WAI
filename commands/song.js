@@ -1,45 +1,39 @@
-/**
- * Comando: .song
- * Pesquisa músicas no YouTube e mostra info (sem download).
- * ACTUALIZADO: usa yt-dlp para pesquisa.
- */
 import { ytSearch } from "../lib/ytdlp.js";
 
-function formatDuration(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
+function fmt(s) {
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
 export default {
   name: "song",
-  description: "Pesquisa uma música no YouTube e mostra informação",
+  description: "Pesquisa música no YouTube e mostra thumbnail + info",
 
   async execute({ sock, jid, msg, args }) {
     if (!args.length) {
       return sock.sendMessage(jid, {
-        text: "❌ Usa: .song nome da música\nExemplo: .song Dj Habias"
+        text: "❌ Usa: .song nome da música\nEx: .song Dj Habias"
       }, { quoted: msg });
     }
 
     try {
       const query = args.join(" ");
-      const video = await ytSearch(query);
+      const v = await ytSearch(query);
 
       const caption =
-`🎵 *MÚSICA ENCONTRADA*
+`🎵 *${v.title}*
 
-📌 *${video.title}*
-👤 Canal: ${video.uploader || "N/A"}
-⏱️ Duração: ${formatDuration(video.duration)}
+👤 Canal: ${v.uploader}
+⏱️ Duração: ${fmt(v.duration)}
+👀 Visualizações: ${v.viewCount ? Number(v.viewCount).toLocaleString("pt-PT") : "N/A"}
 
-🔗 ${video.url}
+🔗 ${v.url}
 
-💡 Usa *.music ${query}* para descarregar`;
+💡 Para baixar: *.music ${query}*`;
 
-      if (video.thumbnail) {
+      if (v.thumbnail) {
         await sock.sendMessage(jid, {
-          image: { url: video.thumbnail },
+          image: { url: v.thumbnail },
           caption
         }, { quoted: msg });
       } else {

@@ -1,60 +1,85 @@
 /**
  * Comando: .news [categoria]
- * Mostra headlines de notícias via RSS público.
- * Categorias: tech, world, angola (padrão: world)
+ * FIX: feeds 100% em português (Angola, Portugal, Brasil).
+ * Categorias: angola, portugal, brasil, desporto, tech
  */
 const FEEDS = {
-  tech:   "https://feeds.bbci.co.uk/news/technology/rss.xml",
-  world:  "https://feeds.bbci.co.uk/news/world/rss.xml",
-  angola: "https://feeds.feedburner.com/JornalDeAngola",
-  pt:     "https://feeds.feedburner.com/PublicoRSS",
+  angola:   "https://www.voanoticias.com/api/zyovmiezk_",
+  portugal: "https://www.publico.pt/rss",
+  brasil:   "https://g1.globo.com/rss/g1/",
+  desporto: "https://www.record.pt/rss",
+  tech:     "https://pplware.sapo.pt/feed/",
+};
+
+// Feeds de fallback simples (RSS públicos que funcionam)
+const FEEDS_FALLBACK = {
+  angola:   "https://feeds.feedburner.com/JornalDeAngola",
+  portugal: "https://observador.pt/feed/",
+  brasil:   "https://rss.uol.com.br/feed/noticias.xml",
+  desporto: "https://www.ojogo.pt/rss",
+  tech:     "https://www.tecmundo.com.br/rss",
 };
 
 async function parseRSS(xml) {
-  const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 5);
+  const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 6);
   return items.map(([, inner]) => {
-    const title = inner.match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/)?.[1]?.trim() ?? "";
-    const link  = inner.match(/<link>(.*?)<\/link>/)?.[1]?.trim() ?? "";
+    const title = inner.match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/s)?.[1]?.trim().replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">") ?? "";
+    const link  = inner.match(/<link>(.*?)<\/link>/)?.[1]?.trim() ?? 
+                  inner.match(/<link[^>]*href="([^"]+)"/)?.[1]?.trim() ?? "";
     return { title, link };
-  });
+  }).filter(i => i.title);
 }
 
 export default {
   name: "news",
-  aliases: ["noticias"],
-  description: "Mostra notícias recentes (world, tech, angola, pt)",
+  aliases: ["noticias", "novidades"],
+  description: "Notícias em português (angola, portugal, brasil, desporto, tech)",
 
   async execute({ sock, jid, msg, args }) {
-    const cat = (args[0] || "world").toLowerCase();
-    const feedUrl = FEEDS[cat];
+    const cat = (args[0] || "angola").toLowerCase();
 
-    if (!feedUrl) {
+    if (!FEEDS[cat]) {
       return sock.sendMessage(jid, {
-        text: `❌ Categoria inválida.\nDisponíveis: ${Object.keys(FEEDS).join(", ")}\nExemplo: .news tech`
+        text: `❌ Categoria inválida.\n\n📋 Disponíveis:\n• angola\n• portugal\n• brasil\n• desporto\n• tech\n\nEx: .news angola`
       }, { quoted: msg });
     }
 
-    try {
-      await sock.sendMessage(jid, { text: `📰 A carregar notícias (${cat})...` }, { quoted: msg });
+    await sock.sendMessage(jid, { text: `📰 A carregar notícias (${cat})...` }, { quoted: msg });
 
-      const res = await fetch(feedUrl, { signal: AbortSignal.timeout(10_000) });
+    const tryFeed = async (url) => {
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(10_000),
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; RSS Reader)" }
+      });
       if (!res.ok) throw new Error(`Feed retornou ${res.status}`);
+      return res.text();
+    };
 
-      const xml   = await res.text();
+    try {
+      let xml;
+      try {
+        xml = await tryFeed(FEEDS[cat]);
+      } catch {
+        xml = await tryFeed(FEEDS_FALLBACK[cat]);
+      }
+
       const items = await parseRSS(xml);
-
       if (!items.length) throw new Error("Sem artigos");
 
-      const lines = items.map((it, i) => `${i + 1}. ${it.title}\n   🔗 ${it.link}`).join("\n\n");
+      const emoji = { angola: "🇦🇴", portugal: "🇵🇹", brasil: "🇧🇷", desporto: "⚽", tech: "💻" }[cat] || "📰";
+
+      const lines = items.map((it, i) =>
+        `${i + 1}. *${it.title}*${it.link ? `\n   🔗 ${it.link}` : ""}`
+      ).join("\n\n");
 
       await sock.sendMessage(jid, {
-        text: `📰 *Notícias — ${cat.toUpperCase()}*\n\n${lines}`
+        text: `${emoji} *Notícias — ${cat.toUpperCase()}*\n\n${lines}`
       }, { quoted: msg });
 
     } catch (err) {
       console.error("[news] erro:", err.message);
       await sock.sendMessage(jid, {
-        text: "⚠️ Não foi possível carregar notícias agora. Tenta mais tarde."
+        text: `⚠️ Não consegui carregar as notícias de *${cat}* agora.\nTenta novamente mais tarde.`
       }, { quoted: msg });
     }
   }

@@ -1,15 +1,8 @@
-/**
- * Comando: .music / .play / .mp3
- * REESCRITO: usa yt-dlp em vez de @distube/ytdl-core.
- * Motivo: ytdl-core é bloqueado pelo YouTube em IPs de servidores cloud (Render, AWS, etc.)
- * O yt-dlp contorna esse bloqueio e é actualizado regularmente.
- */
 import { ytSearch, downloadAudio } from "../lib/ytdlp.js";
 
-function formatDuration(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
+function fmt(s) {
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
 export default {
@@ -20,31 +13,34 @@ export default {
   async execute({ sock, jid, msg, args }) {
     if (!args.length) {
       return sock.sendMessage(jid, {
-        text: "❌ Usa: .music nome da música\nExemplo: .music Burna Boy Last Last"
+        text: "❌ Usa: .music nome da música\nEx: .music Burna Boy Last Last"
       }, { quoted: msg });
     }
 
     const query = args.join(" ");
-
-    await sock.sendMessage(jid, {
-      text: `🔎 A procurar: *${query}*...`
-    }, { quoted: msg });
+    await sock.sendMessage(jid, { text: `🔎 A procurar: *${query}*...` }, { quoted: msg });
 
     try {
-      // 1. Pesquisa
       const video = await ytSearch(query);
 
-      if (video.duration > 600) {
+      if (video.duration > 720) {
         return sock.sendMessage(jid, {
-          text: `⚠️ Música muito longa (${formatDuration(video.duration)}). Máximo: 10 minutos.`
+          text: `⚠️ Música demasiado longa (${fmt(video.duration)}). Máximo: 12 minutos.`
         }, { quoted: msg });
       }
 
-      await sock.sendMessage(jid, {
-        text: `🎵 *${video.title}*\n⏱️ ${formatDuration(video.duration)}\n\n⬇️ A descarregar...`
-      }, { quoted: msg });
+      // Envia preview com thumbnail ANTES do download
+      const previewText = `🎵 *${video.title}*\n👤 ${video.uploader}\n⏱️ ${fmt(video.duration)}\n\n⬇️ A descarregar áudio...`;
 
-      // 2. Download áudio → buffer
+      if (video.thumbnail) {
+        await sock.sendMessage(jid, {
+          image: { url: video.thumbnail },
+          caption: previewText
+        }, { quoted: msg });
+      } else {
+        await sock.sendMessage(jid, { text: previewText }, { quoted: msg });
+      }
+
       const buffer = await downloadAudio(video.url);
 
       const sizeMB = buffer.length / (1024 * 1024);
@@ -54,28 +50,19 @@ export default {
         }, { quoted: msg });
       }
 
-      // 3. Envia
       await sock.sendMessage(jid, {
         audio: buffer,
         mimetype: "audio/mpeg",
-        fileName: `${video.title}.mp3`,
+        fileName: `${video.title.replace(/[^\w\s]/gi, "")}.mp3`,
       }, { quoted: msg });
 
     } catch (err) {
       console.error("[music] erro:", err.message);
-
-      let errMsg = "⚠️ Não consegui descarregar esta música.";
-      if (err.message?.includes("timeout")) {
-        errMsg = "⏱️ O download demorou demasiado. Tenta uma música mais curta.";
-      } else if (err.message?.includes("private") || err.message?.includes("Private")) {
-        errMsg = "🔒 Este vídeo é privado.";
-      } else if (err.message?.includes("age") || err.message?.includes("sign in")) {
-        errMsg = "🔞 Este vídeo requer verificação de idade.";
-      } else if (err.message?.includes("not found") || err.message?.includes("search")) {
-        errMsg = "❌ Não encontrei resultados. Tenta outro nome.";
-      }
-
-      await sock.sendMessage(jid, { text: errMsg }, { quoted: msg });
+      let m = "⚠️ Não consegui descarregar esta música.";
+      if (err.message?.includes("timeout"))  m = "⏱️ O servidor demorou demasiado. Tenta novamente.";
+      if (err.message?.includes("private"))  m = "🔒 Este vídeo é privado.";
+      if (err.message?.includes("age"))      m = "🔞 Este vídeo requer verificação de idade.";
+      await sock.sendMessage(jid, { text: m }, { quoted: msg });
     }
   }
 };
