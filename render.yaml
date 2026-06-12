@@ -2,30 +2,16 @@ services:
   - type: web
     name: whatsapp-bot
     env: node
-    region: frankfurt
-    plan: free
-    buildCommand: |
-      npm install &&
-      mkdir -p bin &&
-      curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp &&
-      chmod +x bin/yt-dlp &&
-      echo "yt-dlp:" && bin/yt-dlp --version
+    buildCommand: npm install
     startCommand: node index.js
     envVars:
       - key: PAIRING_NUMBER
-        sync: false
-      - key: OWNER_NUMBER
-        sync: false
-      - key: OWNER_NAME
-        value: "Administrador"
+        sync: false   # define manualmente no painel do Render
       - key: PREFIX
         value: "."
       - key: BOT_NAME
-        value: "Toji"
-      - key: NODE_ENV
-        value: "production"
+        value: "MyBot"
     disk:
       name: session-storage
       mountPath: /opt/render/project/src/session
       sizeGB: 1
-    healthCheckPath: /health
