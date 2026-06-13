@@ -2,16 +2,33 @@ services:
   - type: web
     name: whatsapp-bot
     env: node
-    buildCommand: npm install
+    region: frankfurt
+    plan: free
+    # Node 20 LTS — compatível com Baileys 6.7.x e WebCrypto
+    # Node 26 quebra o Signal Protocol handshake do Baileys
+    nodeVersion: 20.19.2
+    buildCommand: |
+      npm install &&
+      mkdir -p bin &&
+      curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp &&
+      chmod +x bin/yt-dlp &&
+      echo "yt-dlp versão:" && bin/yt-dlp --version
     startCommand: node index.js
     envVars:
       - key: PAIRING_NUMBER
-        sync: false   # define manualmente no painel do Render
+        sync: false
+      - key: OWNER_NUMBER
+        sync: false
+      - key: OWNER_NAME
+        value: "Administrador"
       - key: PREFIX
         value: "."
       - key: BOT_NAME
-        value: "MyBot"
+        value: "Toji"
+      - key: NODE_ENV
+        value: "production"
     disk:
       name: session-storage
       mountPath: /opt/render/project/src/session
       sizeGB: 1
+    healthCheckPath: /health
