@@ -1,7 +1,3 @@
-/**
- * Comando: .menu2
- * FIX P2: removido import() dinâmico a cada execução.
- */
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -14,15 +10,21 @@ export default {
 
   async execute({ sock, jid, msg, botName, prefix }) {
     try {
-      let botPic = null;
-      try {
-        botPic = await sock.profilePictureUrl(sock.user.id, "image");
-      } catch {
-        botPic = null;
-      }
-
       const files = fs.readdirSync(__dirname).filter(f => f.endsWith(".js"));
       const total = files.length;
+
+      // FIX: sanitizar JID do bot
+      const rawBotJid = sock.user?.id ?? "";
+      const botJid = rawBotJid.replace(/:[\d]+@/, "@");
+
+      let botPic = null;
+      if (botJid) {
+        try {
+          botPic = await sock.profilePictureUrl(botJid, "image");
+        } catch {
+          botPic = null;
+        }
+      }
 
       const menuText =
 `╭━━━〔 🤖 ${botName} 〕━━━⬣
@@ -34,39 +36,41 @@ export default {
 
 ━━━━━━━━━━━━━━
 
-🎵 MÚSICA
+🎵 MÚSICA & VÍDEO
 • ${prefix}music — Baixa áudio do YouTube
 • ${prefix}play  — Alias de music
-• ${prefix}song  — Pesquisa no YouTube
-• ${prefix}lyrics — Letra de música
+• ${prefix}song  — Info + thumbnail YouTube
 • ${prefix}video — Baixa vídeo do YouTube
 
 ━━━━━━━━━━━━━━
 
 😂 DIVERSÃO
-• ${prefix}meme  — Meme aleatório
-• ${prefix}meme2 — Meme com fallback PT
-• ${prefix}joke  — Piada em inglês
-• ${prefix}joke2 — Piada em português
+• ${prefix}meme   — Meme aleatório (inglês)
+• ${prefix}meme2  — Meme em português
+• ${prefix}piada  — Piada em português
+• ${prefix}dado   — Dado / escolha aleatória
+• ${prefix}enquete — Votação no grupo
 
 ━━━━━━━━━━━━━━
 
 🧠 INTELIGÊNCIA
-• ${prefix}ai        — Resposta rápida por IA
-• ${prefix}google    — Pesquisa DuckDuckGo
-• ${prefix}define    — Definição (inglês)
+• ${prefix}ai        — Resposta por IA
+• ${prefix}google    — Pesquisa web (PT)
+• ${prefix}define    — Definição de palavra
 • ${prefix}translate — Traduz texto
-• ${prefix}resume    — Resume texto longo
+• ${prefix}calc      — Calculadora
+• ${prefix}moeda     — Conversão de moedas
 
 ━━━━━━━━━━━━━━
 
 🌍 UTILIDADES
-• ${prefix}weather — Clima de uma cidade
+• ${prefix}clima   — Clima de uma cidade
+• ${prefix}news    — Notícias em português
 • ${prefix}ping    — Latência do bot
 • ${prefix}uptime  — Tempo online
-• ${prefix}info    — Info do utilizador
-• ${prefix}info2   — Perfil avançado
 • ${prefix}sticker — Imagem → sticker
+• ${prefix}repost  — Reenvia mensagem citada
+• ${prefix}agendar — Agenda envio de mensagem
 
 ━━━━━━━━━━━━━━
 
@@ -75,7 +79,7 @@ export default {
 • ${prefix}ban     — Remove membro
 • ${prefix}warn    — Avisa membro (3 = ban)
 • ${prefix}hidetag — Menciona todos
-• ${prefix}echo    — Repete mensagem
+• ${prefix}welcome — Boas-vindas (só admins)
 
 ╰━━━━━━━━━━━━⬣`;
 
