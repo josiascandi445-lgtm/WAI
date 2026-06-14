@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COMMANDS_DIR = path.join(__dirname, "../commands");
-const PREFIX  = process.env.PREFIX  ?? ".";
+const PREFIX   = process.env.PREFIX   ?? ".";
 const BOT_NAME = process.env.BOT_NAME ?? "Bot";
 
 const commandMap = new Map();
@@ -50,24 +50,11 @@ async function loadCommands() {
   console.log(`[Commands] Prefixo: "${PREFIX}" | Entradas no mapa: ${commandMap.size}`);
 }
 
-// FIX: extractText expandido para cobrir TODOS os tipos de mensagem
-// incluindo ephemeral (mensagens temporárias) e viewOnce (ver uma vez)
-// que são frequentes em chats privados
 function extractText(message) {
   if (!message) return "";
-
-  // Mensagem temporária (ephemeral) — desembrulha para o tipo real
-  if (message.ephemeralMessage) {
-    return extractText(message.ephemeralMessage.message);
-  }
-
-  // Ver uma vez — desembrulha
-  if (message.viewOnceMessage) {
-    return extractText(message.viewOnceMessage.message);
-  }
-  if (message.viewOnceMessageV2) {
-    return extractText(message.viewOnceMessageV2.message);
-  }
+  if (message.ephemeralMessage)  return extractText(message.ephemeralMessage.message);
+  if (message.viewOnceMessage)   return extractText(message.viewOnceMessage.message);
+  if (message.viewOnceMessageV2) return extractText(message.viewOnceMessageV2.message);
 
   return (
     message.conversation ??
@@ -85,12 +72,25 @@ function getSender(msg) {
   return msg.key.participant ?? msg.key.remoteJid;
 }
 
+// FIX PRINCIPAL: converte @lid para @s.whatsapp.net
+// O WhatsApp usa @lid internamente para linked devices mas
+// sock.sendMessage() precisa de @s.whatsapp.net para entregar.
+function normalizeJid(jid) {
+  if (!jid) return jid;
+  // Converte @lid → @s.whatsapp.net
+  if (jid.endsWith("@lid")) {
+    return jid.replace("@lid", "@s.whatsapp.net");
+  }
+  return jid;
+}
+
 export async function handleMessage(sock, msg) {
   await loadCommands();
 
-  const jid     = msg.key.remoteJid;
-  const sender  = getSender(msg);
-  const isGroup = jid.endsWith("@g.us");
+  const rawJid  = msg.key.remoteJid;
+  const jid     = normalizeJid(rawJid);   // JID normalizado para envio
+  const sender  = normalizeJid(getSender(msg));
+  const isGroup = rawJid.endsWith("@g.us");
   const body    = extractText(msg.message).trim();
 
   if (!body) return;
