@@ -55,7 +55,6 @@ function extractText(message) {
   if (message.ephemeralMessage)  return extractText(message.ephemeralMessage.message);
   if (message.viewOnceMessage)   return extractText(message.viewOnceMessage.message);
   if (message.viewOnceMessageV2) return extractText(message.viewOnceMessageV2.message);
-
   return (
     message.conversation ??
     message.extendedTextMessage?.text ??
@@ -72,15 +71,12 @@ function getSender(msg) {
   return msg.key.participant ?? msg.key.remoteJid;
 }
 
-// FIX PRINCIPAL: converte @lid para @s.whatsapp.net
+// Converte @lid → @s.whatsapp.net
 // O WhatsApp usa @lid internamente para linked devices mas
 // sock.sendMessage() precisa de @s.whatsapp.net para entregar.
 function normalizeJid(jid) {
   if (!jid) return jid;
-  // Converte @lid → @s.whatsapp.net
-  if (jid.endsWith("@lid")) {
-    return jid.replace("@lid", "@s.whatsapp.net");
-  }
+  if (jid.endsWith("@lid")) return jid.replace("@lid", "@s.whatsapp.net");
   return jid;
 }
 
@@ -88,7 +84,7 @@ export async function handleMessage(sock, msg) {
   await loadCommands();
 
   const rawJid  = msg.key.remoteJid;
-  const jid     = normalizeJid(rawJid);   // JID normalizado para envio
+  const jid     = normalizeJid(rawJid);
   const sender  = normalizeJid(getSender(msg));
   const isGroup = rawJid.endsWith("@g.us");
   const body    = extractText(msg.message).trim();
