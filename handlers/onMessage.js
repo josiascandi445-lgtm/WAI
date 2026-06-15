@@ -26,17 +26,10 @@ async function loadCommands() {
     try {
       const mod = await import(path.join(COMMANDS_DIR, file));
       const cmd = mod.default ?? mod;
-
-      if (!cmd.name || typeof cmd.execute !== "function") {
-        console.warn(`[Commands] ⚠️  Ignorado (sem name/execute): ${file}`);
-        continue;
-      }
-
+      if (!cmd.name || typeof cmd.execute !== "function") continue;
       commandMap.set(cmd.name.toLowerCase(), cmd);
       if (Array.isArray(cmd.aliases)) {
-        for (const alias of cmd.aliases) {
-          commandMap.set(alias.toLowerCase(), cmd);
-        }
+        for (const alias of cmd.aliases) commandMap.set(alias.toLowerCase(), cmd);
       }
       loaded++;
     } catch (err) {
@@ -46,7 +39,7 @@ async function loadCommands() {
   }
 
   commandsLoaded = true;
-  console.log(`[Commands] ✅ ${loaded} comandos carregados${failed ? `, ⚠️  ${failed} falharam` : ""}`);
+  console.log(`[Commands] ✅ ${loaded} comandos carregados${failed ? `, ⚠️ ${failed} falharam` : ""}`);
   console.log(`[Commands] Prefixo: "${PREFIX}" | Entradas no mapa: ${commandMap.size}`);
 }
 
@@ -71,9 +64,9 @@ function getSender(msg) {
   return msg.key.participant ?? msg.key.remoteJid;
 }
 
-// Converte @lid → @s.whatsapp.net
-// O WhatsApp usa @lid internamente para linked devices mas
-// sock.sendMessage() precisa de @s.whatsapp.net para entregar.
+// FIX @lid: o WhatsApp usa @lid para linked devices mas sock.sendMessage
+// precisa de @s.whatsapp.net. Porém o número real do utilizador pode ser
+// diferente do ID @lid — guardamos AMBOS para comparações de admin.
 function normalizeJid(jid) {
   if (!jid) return jid;
   if (jid.endsWith("@lid")) return jid.replace("@lid", "@s.whatsapp.net");
@@ -85,7 +78,8 @@ export async function handleMessage(sock, msg) {
 
   const rawJid  = msg.key.remoteJid;
   const jid     = normalizeJid(rawJid);
-  const sender  = normalizeJid(getSender(msg));
+  const rawSender = getSender(msg);
+  const sender  = normalizeJid(rawSender);
   const isGroup = rawJid.endsWith("@g.us");
   const body    = extractText(msg.message).trim();
 
@@ -96,7 +90,7 @@ export async function handleMessage(sock, msg) {
   const cmdName = rawCmd.toLowerCase();
   const command = commandMap.get(cmdName);
 
-  console.log(`[Message] ${isGroup ? "Grupo" : "Privado"} | ${sender.split("@")[0]} | ${PREFIX}${cmdName}`);
+  console.log(`[Message] ${isGroup ? "Grupo" : "Privado"} | ${rawSender} | ${PREFIX}${cmdName}`);
 
   if (!command) {
     if (!isGroup) {
@@ -111,7 +105,10 @@ export async function handleMessage(sock, msg) {
 
   try {
     await command.execute({
-      sock, msg, jid, sender, args, isGroup,
+      sock, msg, jid,
+      sender,        // JID normalizado (@s.whatsapp.net) para envios
+      rawSender,     // JID original (pode ser @lid) — para comparações de grupo
+      args, isGroup,
       prefix: PREFIX,
       botName: BOT_NAME,
     });
