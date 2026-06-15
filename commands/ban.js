@@ -1,63 +1,47 @@
-/**
- * Comando: .ban @utilizador
- * Remove um participante do grupo (requer que o bot seja admin).
- *
- * NOTA: Este ficheiro foi corrigido — a versão anterior continha
- * uma cópia duplicada do handler de mensagens (onMessage), o que
- * causava conflito de estado e comportamento imprevisível.
- */
+import { isAdmin, isBotAdmin, findParticipantJid } from "../lib/groupUtils.js";
+
 export default {
   name: "ban",
   description: "Remove membro do grupo (bot precisa de ser admin)",
 
-  async execute({ sock, jid, msg, args, isGroup }) {
+  async execute({ sock, jid, msg, sender, rawSender, args, isGroup }) {
     if (!isGroup) {
-      return sock.sendMessage(jid, {
-        text: "❌ Este comando só funciona em grupos."
-      }, { quoted: msg });
+      return sock.sendMessage(jid, { text: "❌ Este comando só funciona em grupos." }, { quoted: msg });
     }
 
-    // Suporta menção (@user) ou número direto
+    // Verificar se quem usa é admin
+    const senderIsAdmin = await isAdmin(sock, jid, rawSender ?? sender);
+    if (!senderIsAdmin) {
+      return sock.sendMessage(jid, { text: "❌ Só os administradores podem usar este comando." }, { quoted: msg });
+    }
+
+    // Verificar se o bot é admin
+    const botIsAdmin = await isBotAdmin(sock, jid);
+    if (!botIsAdmin) {
+      return sock.sendMessage(jid, { text: "⚠️ Preciso de ser admin para remover membros." }, { quoted: msg });
+    }
+
+    // Determinar alvo (menção ou número)
     const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid ?? [];
     let targetJid = mentioned[0] ?? null;
 
     if (!targetJid && args.length) {
-      const number = args[0].replace(/[^0-9]/g, "");
-      if (number) targetJid = number + "@s.whatsapp.net";
+      const num = args[0].replace(/[^0-9]/g, "");
+      if (num) targetJid = await findParticipantJid(sock, jid, num) ?? `${num}@s.whatsapp.net`;
     }
 
     if (!targetJid) {
-      return sock.sendMessage(jid, {
-        text: "❌ Usa: .ban @utilizador  ou  .ban 244912345678"
-      }, { quoted: msg });
+      return sock.sendMessage(jid, { text: "❌ Usa: .ban @utilizador  ou  .ban 244912345678" }, { quoted: msg });
     }
 
     try {
-      // Verifica se o bot é admin antes de tentar
-      const metadata = await sock.groupMetadata(jid);
-      const botJid = sock.user.id.split(":")[0] + "@s.whatsapp.net";
-      const isAdmin = metadata.participants.some(
-        p => p.id === botJid && (p.admin === "admin" || p.admin === "superadmin")
-      );
-
-      if (!isAdmin) {
-        return sock.sendMessage(jid, {
-          text: "⚠️ Preciso de ser admin para banir membros."
-        }, { quoted: msg });
-      }
-
       await sock.groupParticipantsUpdate(jid, [targetJid], "remove");
-
-      const number = targetJid.split("@")[0];
       await sock.sendMessage(jid, {
-        text: `🚫 Utilizador *${number}* removido do grupo.`
+        text: `🚫 *${targetJid.split("@")[0]}* foi removido do grupo.`
       }, { quoted: msg });
-
     } catch (err) {
       console.error("[ban] erro:", err.message);
-      await sock.sendMessage(jid, {
-        text: "⚠️ Não consegui banir. Verifica se sou admin."
-      }, { quoted: msg });
+      await sock.sendMessage(jid, { text: `⚠️ Não consegui remover: ${err.message}` }, { quoted: msg });
     }
   }
 };
