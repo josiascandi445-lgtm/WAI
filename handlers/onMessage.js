@@ -64,24 +64,26 @@ function getSender(msg) {
   return msg.key.participant ?? msg.key.remoteJid;
 }
 
-// FIX @lid: o WhatsApp usa @lid para linked devices mas sock.sendMessage
-// precisa de @s.whatsapp.net. Porém o número real do utilizador pode ser
-// diferente do ID @lid — guardamos AMBOS para comparações de admin.
-function normalizeJid(jid) {
-  if (!jid) return jid;
-  if (jid.endsWith("@lid")) return jid.replace("@lid", "@s.whatsapp.net");
-  return jid;
+// FIX CRÍTICO: NÃO converter @lid para @s.whatsapp.net.
+// O número antes de "@lid" é um ID interno do WhatsApp (Linked ID),
+// DIFERENTE do número de telefone real. Substituir só o sufixo produz
+// um JID de um número de telefone que não existe — a mensagem é enviada
+// "com sucesso" mas para ninguém, e desaparece silenciosamente.
+// O Baileys sabe enviar mensagens directamente para JIDs @lid — não
+// precisamos de converter nada. Mantemos o JID original sempre.
+function getReplyJid(rawJid) {
+  return rawJid; // usar sempre o JID original, seja @lid, @s.whatsapp.net ou @g.us
 }
 
 export async function handleMessage(sock, msg) {
   await loadCommands();
 
-  const rawJid  = msg.key.remoteJid;
-  const jid     = normalizeJid(rawJid);
+  const rawJid    = msg.key.remoteJid;
+  const jid       = getReplyJid(rawJid);     // JID para responder — NUNCA convertido
   const rawSender = getSender(msg);
-  const sender  = normalizeJid(rawSender);
-  const isGroup = rawJid.endsWith("@g.us");
-  const body    = extractText(msg.message).trim();
+  const sender    = rawSender;               // idem para o sender
+  const isGroup   = rawJid.endsWith("@g.us");
+  const body      = extractText(msg.message).trim();
 
   if (!body) return;
   if (!body.startsWith(PREFIX)) return;
@@ -106,8 +108,8 @@ export async function handleMessage(sock, msg) {
   try {
     await command.execute({
       sock, msg, jid,
-      sender,        // JID normalizado (@s.whatsapp.net) para envios
-      rawSender,     // JID original (pode ser @lid) — para comparações de grupo
+      sender,
+      rawSender,
       args, isGroup,
       prefix: PREFIX,
       botName: BOT_NAME,
