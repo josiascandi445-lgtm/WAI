@@ -14,11 +14,6 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TMP_DIR = path.join(__dirname, "../tmp");
 
-function fmt(s) {
-  const m = Math.floor(s / 60), sec = s % 60;
-  return `${m}:${String(sec).padStart(2, "0")}`;
-}
-
 function isTikTokUrl(str) {
   return str.includes("tiktok.com") || str.includes("vm.tiktok") || str.includes("vt.tiktok");
 }
@@ -43,28 +38,22 @@ export default {
 
     await sock.sendMessage(jid, {
       text: isUrl
-        ? "⬇️ A descarregar vídeo TikTok..."
+        ? "⬇️ A descarregar vídeo do TikTok..."
         : `🔎 A procurar no TikTok: *${query}*...`
     }, { quoted: msg });
 
     try {
       let videoUrl = query;
       let title = "Vídeo TikTok";
-      let thumbnail = null;
-      let duration = 0;
 
       if (!isUrl) {
-        // Pesquisa por texto
         const result = await tiktokSearch(query);
-        videoUrl  = result.url;
-        title     = result.title;
-        thumbnail = result.thumbnail;
-        duration  = result.duration;
+        videoUrl = result.url;
+        title    = result.title;
 
-        // Preview antes do download
-        const preview = `🎵 *${title}*\n👤 ${result.uploader}${duration ? `\n⏱️ ${fmt(duration)}` : ""}\n\n⬇️ A descarregar...`;
-        if (thumbnail) {
-          await sock.sendMessage(jid, { image: { url: thumbnail }, caption: preview }, { quoted: msg });
+        const preview = `🎵 *${title}*\n👤 ${result.uploader}\n\n⬇️ A descarregar...`;
+        if (result.thumbnail) {
+          await sock.sendMessage(jid, { image: { url: result.thumbnail }, caption: preview }, { quoted: msg });
         } else {
           await sock.sendMessage(jid, { text: preview }, { quoted: msg });
         }
@@ -90,9 +79,9 @@ export default {
     } catch (err) {
       console.error("[tiktok] erro:", err.message);
       let m = "⚠️ Não consegui descarregar este vídeo do TikTok.";
-      if (err.message?.includes("timeout")) m = "⏱️ O download demorou demasiado. Tenta um vídeo mais curto.";
-      if (err.message?.includes("private")) m = "🔒 Este vídeo é privado.";
-      if (err.message?.includes("login"))   m = "🔒 Este vídeo requer login no TikTok.";
+      if (err.message?.includes("timeout"))    m = "⏱️ O download demorou demasiado. Tenta novamente.";
+      if (err.message?.includes("Nenhum"))     m = "❌ Não encontrei vídeos para essa pesquisa.";
+      if (err.message?.includes("private"))    m = "🔒 Este vídeo é privado.";
       await sock.sendMessage(jid, { text: m }, { quoted: msg });
     } finally {
       if (fs.existsSync(filePath)) try { fs.unlinkSync(filePath); } catch {}
