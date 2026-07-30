@@ -1,0 +1,14 @@
+node_modules/
+.env
+
+# Binários "vendored" (yt-dlp/ffmpeg) — descarregados automaticamente por
+# scripts/setup-bin.sh no build (npm run setup / postinstall). Não commitar:
+# são grandes e dependem da plataforma do host.
+bin/*
+!bin/.gitkeep
+
+# Ficheiros temporários de download (áudio/vídeo em processamento)
+tmp/
+
+# Sessão do WhatsApp (Baileys) — nunca commitar, contém credenciais
+session/

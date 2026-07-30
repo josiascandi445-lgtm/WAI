@@ -7,12 +7,10 @@ services:
     # Node 20 LTS — compatível com Baileys 6.7.x e WebCrypto
     # Node 26 quebra o Signal Protocol handshake do Baileys
     nodeVersion: 20.19.2
-    buildCommand: |
-      npm install &&
-      mkdir -p bin &&
-      curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp &&
-      chmod +x bin/yt-dlp &&
-      echo "yt-dlp versão:" && bin/yt-dlp --version
+    # npm install já corre "postinstall" (scripts/setup-bin.sh), que instala
+    # yt-dlp + ffmpeg em ./bin. O "npm run setup" aqui é apenas uma rede de
+    # segurança idempotente caso o postinstall seja saltado por alguma razão.
+    buildCommand: npm install && npm run setup
     startCommand: node index.js
     envVars:
       - key: PAIRING_NUMBER
@@ -27,6 +25,11 @@ services:
         value: "Toji"
       - key: NODE_ENV
         value: "production"
+      # ── Sistema de download (opcionais — ver README) ──────────────────
+      - key: COBALT_API_URL
+        sync: false   # só definir se tiveres uma instância própria da Cobalt
+      - key: YTDLP_COOKIES_B64
+        sync: false   # cookies.txt do YouTube em base64 — ver README
     disk:
       name: session-storage
       mountPath: /opt/render/project/src/session
