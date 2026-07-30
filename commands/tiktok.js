@@ -2,18 +2,22 @@
  * commands/tiktok.js
  *
  * Comando: .tiktok / .tk
- * Descarrega e envia vídeo do TikTok — APENAS por link (sem pesquisa por nome,
- * como pedido). Toda a lógica de download vive em lib/media/downloader.js —
- * este ficheiro é apenas um wrapper fino, igual em espírito a video.js/dl.js,
- * para que exista um comando dedicado e óbvio para TikTok.
  *
- * Antes desta correcção este ficheiro importava um módulo/funções que não
- * existiam (../lib/ytdlp.js, tiktokSearch, downloadTikTok) — por isso o
- * comando nunca chegava sequer a carregar (o loader engolia o erro em
- * silêncio). Agora usa o mesmo motor (yt-dlp) já usado por .video/.dl.
+ * - Se o argumento for um link do TikTok → download directo (comportamento
+ *   já existente, inalterado).
+ * - Se não for um link → trata como pesquisa: encontra o primeiro vídeo
+ *   relevante no TikTok (via searchTikTok, já existente em lib/media/search.js,
+ *   API tikwm) e reencaminha o link resultante para o MESMO fluxo de
+ *   download (downloadAndSendVideo) — zero duplicação de lógica de download.
+ *
+ * Exemplos suportados:
+ *   .tiktok https://vm.tiktok.com/...    → link directo
+ *   .tiktok edit toji                    → pesquisa
+ *   .tiktok funny cats                   → pesquisa
  */
 import { downloadAndSendVideo } from "../lib/media/downloader.js";
-import { isUrl, detectPlatform } from "../lib/media/platformDetector.js";
+import { isUrl } from "../lib/media/platformDetector.js";
+import { searchTikTok } from "../lib/media/search.js";
 
 function isTikTokUrl(str) {
   return /tiktok\.com|vm\.tiktok|vt\.tiktok/i.test(str);
@@ -22,26 +26,57 @@ function isTikTokUrl(str) {
 export default {
   name: "tiktok",
   aliases: ["tk"],
-  description: "Descarrega vídeo do TikTok (.tiktok <link> ou .tk <link>)",
+  description: "Descarrega vídeo do TikTok (.tiktok <link ou nome>)",
 
   async execute({ sock, jid, msg, args }) {
     if (!args.length) {
       return sock.sendMessage(jid, {
-        text: "❌ Uso: .tiktok <link>\n\nExemplo:\n• .tiktok https://www.tiktok.com/@user/video/123",
+        text:
+          "❌ Uso: .tiktok <link ou nome>\n\n" +
+          "Exemplos:\n" +
+          "• .tiktok https://www.tiktok.com/@user/video/123\n" +
+          "• .tiktok edit toji\n" +
+          "• .tiktok funny cats",
       }, { quoted: msg });
     }
 
     const input = args.join(" ").trim();
+    const ctx = { sock, jid, msg };
 
-    if (!isUrl(input) || !isTikTokUrl(input)) {
-      return sock.sendMessage(jid, {
-        text:
-          "❌ Isso não parece um link do TikTok.\n\n" +
-          "O *.tiktok* só aceita links diretos (sem pesquisa por nome).\n" +
-          "Exemplo: .tiktok https://www.tiktok.com/@user/video/123",
-      }, { quoted: msg });
+    // Caso 1: já é um link do TikTok → comportamento actual, inalterado.
+    if (isUrl(input)) {
+      if (!isTikTokUrl(input)) {
+        return sock.sendMessage(jid, {
+          text:
+            "❌ Esse link não parece ser do TikTok.\n" +
+            "Para outras plataformas usa .video ou .dl.",
+        }, { quoted: msg });
+      }
+      return downloadAndSendVideo(ctx, input);
     }
 
-    await downloadAndSendVideo({ sock, jid, msg }, input);
+    // Caso 2: não é link → trata como pesquisa por nome.
+    let statusMsg;
+    try {
+      statusMsg = await sock.sendMessage(jid, { text: "🔎 *Procurando no TikTok...*" }, { quoted: msg });
+    } catch {}
+
+    let found;
+    try {
+      found = await searchTikTok(input);
+    } catch (err) {
+      console.error(`[tiktok] ❌ Pesquisa falhou: ${err.message}`);
+      const text = `❌ *Não encontrei nenhum vídeo no TikTok para:* "${input}"\n\n${err.message}`;
+      if (statusMsg) {
+        try { return await sock.sendMessage(jid, { text, edit: statusMsg.key }); } catch {}
+      }
+      return sock.sendMessage(jid, { text }, { quoted: msg });
+    }
+
+    // Vídeo encontrado — a partir daqui reutiliza EXACTAMENTE o mesmo fluxo
+    // de download usado para um link directo (downloadAndSendVideo trata
+    // o URL encontrado como qualquer outro link do TikTok).
+    await downloadAndSendVideo(ctx, found.url);
   },
 };
+    
