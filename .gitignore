@@ -12,3 +12,7 @@ tmp/
 
 # Sessão do WhatsApp (Baileys) — nunca commitar, contém credenciais
 session/
+
+# Cookies do YouTube — nunca commitar, são credenciais de sessão de conta Google
+cookies.txt
+lib/cookies.txt

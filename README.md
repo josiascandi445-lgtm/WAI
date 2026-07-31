@@ -168,20 +168,44 @@ para yt-dlp caso falhe.
 
 Pedidos vindos de servidores cloud (Render/Railway) são frequentemente
 bloqueados pelo YouTube com "Sign in to confirm you're not a bot". Fornecer
-cookies de uma conta Google reduz muito esse bloqueio:
+cookies de uma conta Google reduz muito esse bloqueio. **Não se usa
+`--cookies-from-browser`** (não há navegador nem sessão local no Render) —
+o bot lê sempre um ficheiro `cookies.txt` no formato Netscape.
 
-1. Instala a extensão **"Get cookies.txt LOCALLY"** no navegador.
-2. Inicia sessão numa conta Google normal (usa uma conta secundária, não a
-   tua conta pessoal principal) e vai a `youtube.com`.
-3. Exporta o `cookies.txt`.
-4. Converte para base64:
-   - Linux/Mac: `base64 -w0 cookies.txt`
-   - Windows (PowerShell): `[Convert]::ToBase64String([IO.File]::ReadAllBytes("cookies.txt"))`
-5. Cola o resultado na variável `YTDLP_COOKIES_B64` (Render/Railway → Environment Variables).
+**Passo 1 — Gerar o `cookies.txt` (mesmo para todas as opções abaixo):**
 
-Sem cookies o bot continua a funcionar (yt-dlp tenta o cliente `android`
-primeiro, que não exige PO Token na maioria dos vídeos), mas alguns vídeos
-específicos podem falhar sem essa configuração.
+1. Instala a extensão **"Get cookies.txt LOCALLY"** no Chrome/Firefox
+   ([link na Chrome Web Store](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc)).
+2. Inicia sessão numa conta Google normal em `youtube.com` (recomenda-se
+   usar uma conta secundária, não a tua conta pessoal principal).
+3. Com a extensão, exporta os cookies do domínio `youtube.com` para um
+   ficheiro `cookies.txt` (formato Netscape).
+
+**Passo 2 — Escolher ONDE colocar o ficheiro** (o bot procura por esta ordem;
+usa só uma das opções):
+
+| Opção | Como configurar | Quando usar |
+|---|---|---|
+| 1️⃣ `YTDLP_COOKIES_FILE` | Env var com o caminho do ficheiro no disco | Já tens um disco persistente (ex: Render Disk) |
+| 2️⃣ `YTDLP_COOKIES_B64` | Env var com o conteúdo em base64 | Plataformas sem disco persistente (ex: Railway) |
+| 3️⃣ `cookies.txt` na **raiz do projeto** | Copia o ficheiro para a raiz do repositório | Mais simples — detecção automática, sem env var |
+| 4️⃣ `lib/cookies.txt` | Copia o ficheiro para dentro de `lib/` | Alternativa a (3), mesma detecção automática |
+
+Para a opção 2️⃣, converte para base64:
+- Linux/Mac: `base64 -w0 cookies.txt`
+- Windows (PowerShell): `[Convert]::ToBase64String([IO.File]::ReadAllBytes("cookies.txt"))`
+
+⚠️ Se usares a opção 3️⃣ ou 4️⃣, **nunca faças commit do ficheiro** — já está
+no `.gitignore`, mas confirma antes de dar `git push`. São credenciais de
+sessão da tua conta Google.
+
+**Se nenhuma das quatro opções estiver configurada**, o bot continua a
+funcionar normalmente (yt-dlp tenta o cliente `android` primeiro, que não
+exige PO Token na maioria dos vídeos) — só regista um aviso no log a
+informar que está a correr sem cookies. Downloads de vídeo (`.video`,
+`.tiktok`, `.dl`) e de áudio (`.play`, `.music`) usam automaticamente os
+mesmos cookies, porque partilham a mesma função `commonArgs()` em
+`lib/media/ytdlp.js`.
 
 ### yt-dlp + ffmpeg — instalação automática
 
