@@ -132,6 +132,7 @@ O comando fica disponível automaticamente como `.ola` sem reiniciar.
 | `COBALT_API_URL` | ❌ | URL de uma instância **própria** da Cobalt (self-hosted). Ver secção abaixo. |
 | `YTDLP_COOKIES_B64` | ❌ (recomendado) | `cookies.txt` do YouTube em base64. Ver secção abaixo. |
 | `YTDLP_COOKIES_FILE` | ❌ | Alternativa a `YTDLP_COOKIES_B64`: caminho directo para um ficheiro já no disco. |
+| `AUDIOMACK_API_KEY` / `AUDIOMACK_API_SECRET` | ❌ | Consumer key/secret da API oficial do Audiomack (2ª fonte do `.play`). Ver secção abaixo. |
 
 Ver `.env.example` para o ficheiro completo com instruções.
 
@@ -143,13 +144,38 @@ Comandos disponíveis:
 
 | Comando | Uso |
 |---|---|
-| `.play` / `.music` / `.ytmp3` | `.play <nome ou link>` — descarrega só áudio (mp3) |
-| `.video` / `.ytmp4` | `.video <nome ou link>` — descarrega vídeo (até 720p) |
+| `.play` / `.music` / `.ytmp3` | `.play <nome ou link>` — descarrega só áudio (mp3). Nome → SoundCloud → Audiomack → YouTube (ver abaixo). Link → direto (YouTube, TikTok, etc.) |
+| `.video` / `.ytmp4` | `.video <nome ou link>` — descarrega vídeo (até 720p). Pesquisa por nome usa YouTube |
 | `.dl` / `.download` | `.dl <link ou nome>`, ou `.dl --audio ...` / `.dl --video ...` |
-| `.tiktok` / `.tk` | `.tiktok <link>` — **só por link**, sem pesquisa por nome |
+| `.tiktok` / `.tk` | `.tiktok <link ou nome>` — aceita link direto **ou** pesquisa por nome no TikTok |
 
 Plataformas suportadas para link directo: **YouTube, TikTok, Instagram, Facebook, X (Twitter) e Reddit.**
-Pesquisa por nome (`.play Shape of You`) está disponível apenas para YouTube.
+
+### `.play` por nome: SoundCloud → Audiomack → YouTube
+
+Quando `.play`/`.music` recebe um **nome** (não um link), tenta as fontes por
+esta ordem, avançando para a seguinte assim que uma falha (não insiste
+indefinidamente na mesma fonte):
+
+1. **SoundCloud** — via yt-dlp (fala com a API pública oficial da
+   SoundCloud). Não precisa de nenhuma configuração.
+2. **Audiomack** — via API oficial (OAuth 1.0a, assinatura feita à mão com
+   `crypto` do Node, sem dependências novas). Requer registo gratuito de
+   uma app em [audiomack.com/data-api/docs](https://audiomack.com/data-api/docs)
+   e as variáveis `AUDIOMACK_API_KEY` / `AUDIOMACK_API_SECRET`. Sem elas,
+   esta fonte é saltada automaticamente (log claro, sem erro para o
+   utilizador).
+3. **YouTube** — o pipeline já existente (yt-dlp + cookies + Cobalt
+   opcional), inalterado.
+
+Um link directo (`.play https://youtu.be/...`, `.play https://tiktok.com/...`)
+**não passa por este fluxo** — vai directo à fonte correspondente, como
+sempre foi.
+
+Os logs do servidor mostram cada tentativa com o prefixo `[PLAY]`
+(`[PLAY] SoundCloud: ...`, `[PLAY] Audiomack: ...`, `[PLAY] YouTube: ...`),
+para facilitar diagnóstico — a mensagem enviada ao utilizador mantém-se
+simples (🔎/📥/📦/📤) independentemente de qual fonte foi usada.
 
 ### Motor de download: yt-dlp (principal) + Cobalt (opcional)
 

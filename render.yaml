@@ -30,6 +30,12 @@ services:
         sync: false   # só definir se tiveres uma instância própria da Cobalt
       - key: YTDLP_COOKIES_B64
         sync: false   # cookies.txt do YouTube em base64 — ver README
+      # Audiomack (2ª fonte do .play) — opcional. Sem isto, esta fonte é
+      # saltada automaticamente e o .play segue para SoundCloud → YouTube.
+      - key: AUDIOMACK_API_KEY
+        sync: false
+      - key: AUDIOMACK_API_SECRET
+        sync: false
     disk:
       name: session-storage
       mountPath: /opt/render/project/src/session
