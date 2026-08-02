@@ -59,12 +59,41 @@ function pick(arr) {
  * mostrar esses dígitos é o que ficava "estranho"; por isso, nesse caso
  * mostramos "Membro" em vez de um número que nem é válido.
  */
-export function fallbackDisplayName(jid) {
-  if (!jid) return "Membro";
-  if (jid.endsWith("@lid")) return "Membro";
+function formatPhoneDigits(jid) {
   const digits = jid.split("@")[0].replace(/[^0-9]/g, "");
-  if (digits.length < 8 || digits.length > 15) return "Membro";
+  if (digits.length < 8 || digits.length > 15) return null;
   return `+${digits}`;
+}
+
+/**
+ * Formata um JID em algo apresentável quando não há nome disponível.
+ *
+ * @lid não é directamente um número de telefone (é um ID interno do
+ * WhatsApp) — mas o Baileys guarda internamente um mapeamento @lid →
+ * número real (sock.signalRepository.lidMapping), preenchido depois de
+ * o bot já ter visto uma mensagem "normal" dessa pessoa. Tentamos usá-lo
+ * primeiro; se não conseguirmos resolver (mapeamento ainda vazio, ou
+ * versão do Baileys sem esta API), caímos para "Membro" em vez de
+ * mostrar um número que nem é real.
+ */
+export async function fallbackDisplayName(sock, jid) {
+  if (!jid) return "Membro";
+
+  if (!jid.endsWith("@lid")) {
+    return formatPhoneDigits(jid) || "Membro";
+  }
+
+  try {
+    const pn = await sock?.signalRepository?.lidMapping?.getPNForLID?.(jid);
+    if (pn) {
+      const formatted = formatPhoneDigits(pn);
+      if (formatted) return formatted;
+    }
+  } catch (err) {
+    console.warn(`[certificado] não consegui resolver @lid → número real: ${err.message}`);
+  }
+
+  return "Membro"; // mapeamento indisponível — fallback honesto, como antes
 }
 
 /**
@@ -257,9 +286,9 @@ export default {
     // menção; sem isso, mostra o número formatado (não o JID cru).
     let name;
     if (isSelf) {
-      name = msg.pushName || fallbackDisplayName(sender);
+      name = msg.pushName || await fallbackDisplayName(sock, sender);
     } else {
-      name = freeText || fallbackDisplayName(targetJid);
+      name = freeText || await fallbackDisplayName(sock, targetJid);
     }
 
     const cat = CATEGORIES[category];
