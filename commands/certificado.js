@@ -102,19 +102,23 @@ export async function fallbackDisplayName(sock, jid) {
  * (mesmo padrão de lib/farewellMessages.js). `theme` controla as cores.
  */
 const THEMES = {
-  gold:   { bg: ["#1a1a2e", "#16213e"], accent: ["#FFD700", "#FFF3B0", "#FFD700"], text: "#DDDDDD" },
-  vip:    { bg: ["#000000", "#1a1a1a"], accent: ["#FFD700", "#FFFFFF", "#FFD700"], text: "#EEEEEE" },
-  ghost:  { bg: ["#20242c", "#2c313c"], accent: ["#9AA5B1", "#E4E9F0", "#9AA5B1"], text: "#C7CDD6" },
-  danger: { bg: ["#2a1414", "#3a1a1a"], accent: ["#FF6B6B", "#FFD37A", "#FF6B6B"], text: "#EED6D6" },
+  gold:         { bg: ["#1a1a2e", "#16213e"], accent: ["#FFD700", "#FFF3B0", "#FFD700"], text: "#DDDDDD" },
+  vip:          { bg: ["#000000", "#1a1a1a"], accent: ["#FFD700", "#FFFFFF", "#FFD700"], text: "#EEEEEE" },
+  ghost:        { bg: ["#20242c", "#2c313c"], accent: ["#9AA5B1", "#E4E9F0", "#9AA5B1"], text: "#C7CDD6" },
+  danger:       { bg: ["#2a1414", "#3a1a1a"], accent: ["#FF6B6B", "#FFD37A", "#FF6B6B"], text: "#EED6D6" },
+  professional: { bg: ["#0b1622", "#122036"], accent: ["#C7D2E0", "#FFFFFF", "#C7D2E0"], text: "#D6DEE8" },
+  diamond:      { bg: ["#071a2b", "#0c2b45"], accent: ["#7FE7FF", "#FFFFFF", "#7FE7FF"], text: "#D9F4FF" },
 };
 
 const CATEGORIES = {
   default: {
     title: "CERTIFICADO", subtitle: "TOJI AI — EDIÇÃO ESPECIAL", emoji: "🏆", theme: "gold",
+    desc: "Certificado genérico — motivo livre",
     compliments: ["ser simplesmente incrível"],
   },
   cds: {
     title: "CLIENTE DA SEMANA", subtitle: "RECONHECIMENTO ESPECIAL", emoji: "🌟", theme: "gold",
+    desc: "Cliente da semana",
     compliments: [
       "dedicação e lealdade que fazem toda a diferença",
       "ser a razão pela qual continuamos a melhorar todos os dias",
@@ -123,6 +127,7 @@ const CATEGORIES = {
   },
   win: {
     title: "VENCEDOR DO TORNEIO", subtitle: "CAMPEÃO OFICIAL", emoji: "🏅", theme: "gold",
+    desc: "Vencedor de um torneio",
     compliments: [
       "talento, garra e um toque de sorte para conquistar o topo",
       "não desistir até erguer o troféu",
@@ -131,6 +136,7 @@ const CATEGORIES = {
   },
   ghost: {
     title: "CERTIFICADO DE PRESENÇA FANTASMA", subtitle: "PARABÉNS PELA DISCRIÇÃO", emoji: "👻", theme: "ghost",
+    desc: "Certificado de inactividade (nunca reage, mas está sempre presente)",
     compliments: [
       "nunca reagir, nunca comentar, nunca fazer nada — mas estar sempre presente",
       "elevar a arte de ler e não responder a um novo nível",
@@ -139,6 +145,7 @@ const CATEGORIES = {
   },
   burla: {
     title: "MAIOR BURLADOR DO GRUPO", subtitle: "TÍTULO NADA HONROSO", emoji: "🕵️", theme: "danger",
+    desc: "O maior burlador do grupo",
     compliments: [
       "convencer meio grupo com uma história que nem ele acreditava",
       "ser tão bom a enganar que já quase é profissão",
@@ -147,6 +154,7 @@ const CATEGORIES = {
   },
   vip: {
     title: "CLIENTE VIP", subtitle: "ACESSO TOTAL · EDIÇÃO PREMIUM", emoji: "💎", theme: "vip",
+    desc: "Cliente VIP da loja",
     compliments: [
       "exigência, bom gosto e fidelidade de outro nível",
       "fazer parte do clube mais exclusivo da loja",
@@ -155,6 +163,7 @@ const CATEGORIES = {
   },
   cday: {
     title: "CLIENTE DO DIA", subtitle: "DESTAQUE DE HOJE", emoji: "☀️", theme: "gold",
+    desc: "Cliente do dia",
     compliments: [
       "fazer o nosso dia melhor com a sua presença",
       "ser o destaque de hoje por muito boas razões",
@@ -163,17 +172,81 @@ const CATEGORIES = {
   },
   top3: {
     title: "3º LUGAR — MELHOR CLIENTE DA LOJA", subtitle: "PÓDIO OFICIAL", emoji: "🥉", theme: "gold",
+    desc: "3º lugar — melhor cliente da loja",
     compliments: ["dedicação que garantiu um lugar no pódio", "consistência que não passou despercebida"],
   },
   top2: {
     title: "2º LUGAR — MELHOR CLIENTE DA LOJA", subtitle: "PÓDIO OFICIAL", emoji: "🥈", theme: "gold",
+    desc: "2º lugar — melhor cliente da loja",
     compliments: ["estar quase lá — só faltou um pouco mais", "uma prata muito bem merecida"],
   },
   top1: {
     title: "1º LUGAR — MELHOR CLIENTE DA LOJA", subtitle: "PÓDIO OFICIAL", emoji: "🥇", theme: "vip",
+    desc: "1º lugar — melhor cliente da loja",
     compliments: ["ser, sem dúvida, o número 1", "liderar o pódio com muito mérito"],
   },
+  madm: {
+    title: "MELHOR ADMINISTRADOR DA BUG SHOP", subtitle: "RECONHECIMENTO DE LIDERANÇA", emoji: "🛡️", theme: "professional",
+    desc: "Melhor ADM da Bug Shop",
+    compliments: [
+      "liderança exemplar e dedicação total à equipa",
+      "manter tudo em ordem mesmo nos dias mais complicados",
+      "ser o padrão de excelência que todos os outros seguem",
+    ],
+  },
+  admd: {
+    title: "ADMINISTRADOR DO DIA", subtitle: "BUG SHOP — RECONHECIMENTO DIÁRIO", emoji: "📋", theme: "professional",
+    desc: "ADM do dia",
+    compliments: [
+      "resolver tudo com rapidez e profissionalismo hoje",
+      "manter a organização e o bom ambiente durante o dia",
+      "estar sempre disponível quando a equipa precisou",
+    ],
+  },
+  adms: {
+    title: "ADMINISTRADOR DA SEMANA", subtitle: "BUG SHOP — RECONHECIMENTO SEMANAL", emoji: "📊", theme: "professional",
+    desc: "ADM da semana",
+    compliments: [
+      "uma semana inteira de dedicação e boa gestão",
+      "manter a equipa organizada do início ao fim da semana",
+      "ser uma presença constante e de confiança",
+    ],
+  },
+  admm: {
+    title: "ADMINISTRADOR DO MÊS", subtitle: "BUG SHOP — RECONHECIMENTO MENSAL", emoji: "🏛️", theme: "professional",
+    desc: "ADM do mês",
+    compliments: [
+      "um mês inteiro de liderança e resultados consistentes",
+      "ser a referência de gestão da equipa este mês",
+      "elevar o padrão de administração a um novo nível",
+    ],
+  },
+  kilape: {
+    title: "KILAPEIRO OFICIAL DA LOJA", subtitle: "DONO DAS DÍVIDAS", emoji: "💸", theme: "danger",
+    desc: "O kilapeiro da loja (cheio de dívidas por pagar)",
+    compliments: [
+      "acumular dívidas com uma dedicação impressionante",
+      "prometer pagar amanhã, hoje, ontem e sempre",
+      "ser o cliente mais fiel... à lista de devedores",
+    ],
+  },
+  ref: {
+    title: "MELHOR REFERÊNCIA DO DIA", subtitle: "TOP EM RECARGAS DE DIAMANTES", emoji: "💎", theme: "diamond",
+    desc: "Melhor referência do dia (mais recargas de diamantes)",
+    compliments: [
+      "recarregar diamantes como quem não quer nada",
+      "ser a referência número 1 em compras hoje",
+      "investir sem hesitar e sem olhar para trás",
+    ],
+  },
 };
+
+/** Ordem de exibição no ".certificado menu" — segue a ordem lógica pedida. */
+const MENU_ORDER = [
+  "default", "cds", "cday", "win", "vip", "top1", "top2", "top3",
+  "madm", "admd", "adms", "admm",
+  "ghost", "burla", "kilape", "ref",
+];
 
 /**
  * Constrói o SVG do certificado (sem a foto — a foto é composta por
@@ -264,15 +337,57 @@ async function fetchCircularAvatar(sock, jid, size = 220, grayscale = false) {
   }
 }
 
+/**
+ * Fallback manual: se alguém escrever "@244911111111" como texto puro
+ * (sem usar o selector de contacto do WhatsApp), tenta reconhecer esse
+ * token e construir o JID a partir dele. Só aceita tokens com "@" +
+ * 8-15 dígitos, para não confundir com uma palavra qualquer.
+ */
+export function extractManualMentionJid(args) {
+  for (const a of args) {
+    const m = a.match(/^@(\d{8,15})$/);
+    if (m) return `${m[1]}@s.whatsapp.net`;
+  }
+  return null;
+}
+
+/** Texto do ".certificado menu" — construído a partir de CATEGORIES, nunca duplicado à mão. */
+export function buildMenuText(prefix = ".") {
+  const lines = MENU_ORDER.map(key => {
+    const c = CATEGORIES[key];
+    const label = key === "default" ? "(sem categoria)" : key;
+    return `${c.emoji} *${prefix}certificado ${label}* — ${c.desc}`;
+  });
+
+  return (
+    `📜 *Menu do .certificado*\n\n` +
+    `${lines.join("\n")}\n\n` +
+    `_Uso:_ ${prefix}certificado <categoria> [@user] [nome]\n` +
+    `_Sem menção, o certificado é emitido para ti próprio._`
+  );
+}
+
 export default {
   name: "certificado",
   aliases: ["certificate"],
-  description: "Gera um certificado (.certificado [categoria] [@user] [nome])",
+  description: "Gera um certificado (.certificado [categoria] [@user] [nome] | .certificado menu)",
 
-  async execute({ sock, jid, msg, args, sender }) {
-    const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid ?? [];
-    const isSelf = mentioned.length === 0;
-    const targetJid = mentioned[0] ?? sender;
+  async execute({ sock, jid, msg, args, sender, prefix }) {
+    if ((args[0] || "").toLowerCase() === "menu") {
+      return sock.sendMessage(jid, { text: buildMenuText(prefix || ".") }, { quoted: msg });
+    }
+
+    // Deteção do alvo em cascata — tenta 3 formas, pela ordem mais fiável:
+    //   1. Menção real do WhatsApp (tocar/seleccionar contacto)
+    //   2. Responder (citar) a mensagem da pessoa
+    //   3. Escrever "@numero" à mão como texto simples
+    // Sem nenhuma delas, o certificado é para quem enviou o comando.
+    const mentioned        = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid ?? [];
+    const quotedParticipant = msg.message?.extendedTextMessage?.contextInfo?.participant ?? null;
+    const manualJid         = extractManualMentionJid(args);
+
+    const targetJid = mentioned[0] || quotedParticipant || manualJid || sender;
+    const isSelf    = targetJid === sender;
 
     // 1º arg é categoria válida? Se sim, consome-o; senão fica tudo como texto livre (motivo/nome).
     const firstArg = (args[0] || "").toLowerCase();
@@ -282,8 +397,9 @@ export default {
     const freeText = rest.join(" ").trim();
 
     // Nome: se for para o próprio, usa o pushName real do WhatsApp.
-    // Se for para alguém mencionado, usa o texto escrito a seguir à
-    // menção; sem isso, mostra o número formatado (não o JID cru).
+    // Se for para alguém mencionado/citado, usa o texto escrito a seguir;
+    // sem isso, tenta o número real (mesmo para @lid, via lidMapping) e
+    // só cai em "Membro" se mesmo assim não conseguir.
     let name;
     if (isSelf) {
       name = msg.pushName || await fallbackDisplayName(sock, sender);
