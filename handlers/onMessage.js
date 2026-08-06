@@ -1,6 +1,8 @@
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { isBotEnabled } from "../lib/botState.js";
+import { isOwner } from "../lib/groupUtils.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COMMANDS_DIR = path.join(__dirname, "../commands");
@@ -90,6 +92,14 @@ export async function handleMessage(sock, msg) {
 
   const [rawCmd, ...args] = body.slice(PREFIX.length).trim().split(/\s+/);
   const cmdName = rawCmd.toLowerCase();
+
+  // Gate global .on/.off — enquanto desligado, o bot ignora TUDO em
+  // silêncio, excepto ".on" vindo do próprio dono (senão nunca haveria
+  // forma de o religar).
+  if (!isBotEnabled() && !(cmdName === "on" && isOwner(rawSender))) {
+    return;
+  }
+
   const command = commandMap.get(cmdName);
 
   console.log(`[Message] ${isGroup ? "Grupo" : "Privado"} | ${rawSender} | ${PREFIX}${cmdName}`);

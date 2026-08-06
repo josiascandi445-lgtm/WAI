@@ -21,6 +21,7 @@
 import { getRandomFarewell } from "../lib/farewellMessages.js";
 import { sameNumber } from "../lib/groupUtils.js";
 import { handleParticipantsAdded } from "./onAddRace.js";
+import { isBotEnabled } from "../lib/botState.js";
 
 const DEDUPE_WINDOW_MS = 15_000;
 const recentlyHandled = new Map(); // chave: "grupoJid:participanteJid" → timestamp
@@ -36,6 +37,8 @@ function isDuplicate(key) {
 }
 
 export async function handleGroupParticipantsUpdate(sock, update) {
+  if (!isBotEnabled()) return; // bot desligado (.off) — sem despedidas, sem ADD RACE
+
   const { id: groupJid, participants, action, author } = update || {};
 
   if (!groupJid || !groupJid.endsWith("@g.us")) return; // nunca em privado
