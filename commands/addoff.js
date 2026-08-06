@@ -18,7 +18,7 @@ export default {
       return sock.sendMessage(jid, { text: "❌ Este comando só funciona em grupos." }, { quoted: msg });
     }
 
-    const allowed = (await isAdmin(sock, jid, rawSender ?? sender)) || isOwner(sender);
+    const allowed = (await isAdmin(sock, jid, rawSender ?? sender)) || (await isOwner(sender, sock));
     if (!allowed) {
       return sock.sendMessage(jid, {
         text: "❌ Só administradores do grupo (ou o dono do bot) podem desactivar o ADD RACE.",

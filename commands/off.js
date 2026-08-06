@@ -14,7 +14,7 @@ export default {
   description: "Desactiva o bot (só o dono)",
 
   async execute({ sock, jid, msg, sender }) {
-    if (!isOwner(sender)) {
+    if (!(await isOwner(sender, sock))) {
       return sock.sendMessage(jid, { text: "❌ Só o dono do bot pode usar este comando." }, { quoted: msg });
     }
 
