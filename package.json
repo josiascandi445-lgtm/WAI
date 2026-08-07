@@ -7,15 +7,16 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "setup": "bash scripts/setup-bin.sh",
-    "postinstall": "bash scripts/setup-bin.sh || true"
+    "setup": "bash scripts/setup-bin.sh && bash scripts/setup-fonts.sh",
+    "postinstall": "(bash scripts/setup-bin.sh && bash scripts/setup-fonts.sh) || true"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.9",
     "express": "^4.18.2",
     "pino": "^8.19.0",
     "dotenv": "^16.4.5",
-    "sharp": "^0.33.4"
+    "sharp": "^0.33.4",
+    "text-to-svg": "^3.1.5"
   },
   "engines": {
     "node": "20.x"

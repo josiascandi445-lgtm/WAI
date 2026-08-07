@@ -138,6 +138,33 @@ Ver `.env.example` para o ficheiro completo com instruções.
 
 ---
 
+## 🖼️ Stickers de texto — `.stext`
+
+`.stext <palavra1> <palavra2>` cria um sticker com o texto escrito em
+letras grandes (2 linhas, tipo "ADM OFF"), escolhendo **aleatoriamente**
+1 de 10 estilos de fonte × 1 de 10 fundos — 100 combinações possíveis.
+
+**Como os 10 estilos de fonte funcionam de verdade:** em vez de pedir ao
+servidor para "encontrar" uma fonte pelo nome (que falharia em silêncio
+se essa fonte não estiver instalada, fazendo os 10 estilos parecerem
+todos iguais), o texto é convertido directamente a partir do ficheiro
+`.ttf` real em desenho vectorial (biblioteca `text-to-svg`). Por isso os
+estilos ficam sempre visualmente diferentes, seja qual for o servidor.
+
+As 10 fontes (Anton, Bangers, Bebas Neue, Permanent Marker, Creepster,
+Press Start 2P, Lobster, Righteous, Bungee, Luckiest Guy — todas de
+licença aberta/Google Fonts) são descarregadas automaticamente no build
+por `scripts/setup-fonts.sh` (mesmo mecanismo do yt-dlp/ffmpeg — corre
+no `postinstall`). Se alguma falhar a descarregar, esse estilo
+específico usa uma fonte de reserva embutida em vez de rebentar o
+comando — nunca bloqueia o deploy nem o `.stext`.
+
+Os 10 fundos (riscas tipo tigre, respingos, halftone, neon, diagonal,
+explosão, camuflado, gradiente, triângulos, minimalista) são desenhados
+inteiramente em vector — sem nenhuma imagem externa.
+
+---
+
 ## 🎬 Sistema de Download (vídeo + música)
 
 Comandos disponíveis:
