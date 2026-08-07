@@ -7,6 +7,13 @@ node_modules/
 bin/*
 !bin/.gitkeep
 
+# Fontes do .stext — descarregadas automaticamente por scripts/setup-fonts.sh
+# no build (npm run setup / postinstall). Não commitar: ficheiros grandes,
+# e licença aberta permite redistribuição mas não há necessidade de as
+# guardar no repositório.
+assets/fonts/*
+!assets/fonts/.gitkeep
+
 # Ficheiros temporários de download (áudio/vídeo em processamento)
 tmp/
 
