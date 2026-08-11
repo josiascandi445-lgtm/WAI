@@ -23,3 +23,11 @@ session/
 # Cookies do YouTube — nunca commitar, são credenciais de sessão de conta Google
 cookies.txt
 lib/cookies.txt
+
+# Bug Shop — pedidos e sessões contêm dados reais de clientes (nome,
+# número, ID de jogo). Nunca commitar.
+data/bugshop_orders.json
+data/bugshop_sessions.json
+
+# Contador de numeração das faturas — muda a cada fatura emitida.
+data/fatura_counter.json
