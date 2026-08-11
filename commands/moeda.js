@@ -46,10 +46,27 @@ export default {
       }
 
       const resultado = valor * rate;
-      const fmtNum = (n) => n.toLocaleString("pt-PT", { maximumFractionDigits: 2 });
+
+      // Formatação MANUAL — não usar toLocaleString("pt-PT"): essa locale
+      // usa espaço não-separável para milhares (invisível/estranho em
+      // muitos clientes WhatsApp) e depende dos dados de idioma instalados
+      // no Node do servidor, que variam consoante o ambiente. Formato fixo
+      // ponto=milhares / vírgula=decimais (convenção usada em Angola).
+      const fmtNum = (n, maxDecimals = 2) => {
+        const rounded = Math.round(n * 10 ** maxDecimals) / 10 ** maxDecimals;
+        const [intPart, decPart = ""] = rounded.toFixed(maxDecimals).split(".");
+        const intGrouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        const trimmedDec = decPart.replace(/0+$/, "");
+        return trimmedDec ? `${intGrouped},${trimmedDec}` : intGrouped;
+      };
+
+      // A taxa pode ser um número muito pequeno (ex: AOA → USD) — 2 casas
+      // decimais arredondaria para "0,00" e pareceria quebrado. Usa mais
+      // casas decimais quando a taxa for menor que 1.
+      const rateDecimals = Math.abs(rate) < 1 ? 6 : 2;
 
       await sock.sendMessage(jid, {
-        text: `💱 *Conversão de Moedas*\n\n💰 ${fmtNum(valor)} ${origem}\n\n🔄 = *${fmtNum(resultado)} ${dest}*\n\n📊 Taxa: 1 ${origem} = ${fmtNum(rate)} ${dest}\n🕐 Dados: ${new Date(data.time_last_update_utc).toLocaleDateString("pt-PT")}`
+        text: `💱 *CONVERSÃO DE MOEDA*\n\n💵 Valor enviado: ${fmtNum(valor)} ${origem}\n🔄 Valor convertido: *${fmtNum(resultado)} ${dest}*\n\n📊 Taxa utilizada: 1 ${origem} = ${fmtNum(rate, rateDecimals)} ${dest}\n🕐 Dados: ${new Date(data.time_last_update_utc).toLocaleDateString("pt-PT")}`
       }, { quoted: msg });
 
     } catch (err) {
