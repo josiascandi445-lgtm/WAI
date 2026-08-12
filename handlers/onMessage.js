@@ -2,7 +2,9 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { isBotEnabled } from "../lib/botState.js";
-import { isOwner, resolveRealJid } from "../lib/groupUtils.js";
+import { isOwner } from "../lib/groupUtils.js";
+import { getSession } from "../lib/bugshop/store.js";
+import { handleBugshopInput } from "../lib/bugshop/flow.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COMMANDS_DIR = path.join(__dirname, "../commands");
@@ -66,43 +68,47 @@ function getSender(msg) {
   return msg.key.participant ?? msg.key.remoteJid;
 }
 
-// Em privado, quando o remoteJid vem como @lid, tentamos resolvê-lo para o
-// número de telefone real ANTES de responder.
-//
-// PORQUÊ: um regex ingénuo que troca só o sufixo "@lid" por
-// "@s.whatsapp.net" produz um número que não existe (a mensagem "envia com
-// sucesso" mas desaparece — foi por isso que uma versão anterior deste
-// código passou a manter sempre o @lid original, sem tentar converter).
-// Só que enviar directamente para um @lid tem um bug conhecido e actual do
-// Baileys (a sessão Signal não fica bem estabelecida e a mensagem fica
-// presa em "Waiting for this message" do lado de quem recebe — isto é
-// provavelmente a causa de o bot "não responder no privado"). A forma
-// correcta e segura de resolver isto é usar o mapeamento GENUÍNO que o
-// próprio Baileys guarda (sock.signalRepository.lidMapping), o mesmo que já
-// é usado em commands/certificado.js — nunca inventamos números, só usamos
-// os que o Baileys já confirmou. Se não houver mapeamento disponível (ex:
-// primeira mensagem de sempre dessa pessoa), mantemos o @lid original como
-// antes — sem regressão.
-async function getReplyJid(sock, rawJid) {
-  if (!rawJid.endsWith("@lid")) return rawJid;
-  const resolved = await resolveRealJid(sock, rawJid);
-  if (resolved !== rawJid) {
-    console.log(`[Message] @lid resolvido para número real: ${rawJid} → ${resolved}`);
-  }
-  return resolved;
+// FIX CRÍTICO: NÃO converter @lid para @s.whatsapp.net.
+// O número antes de "@lid" é um ID interno do WhatsApp (Linked ID),
+// DIFERENTE do número de telefone real. Substituir só o sufixo produz
+// um JID de um número de telefone que não existe — a mensagem é enviada
+// "com sucesso" mas para ninguém, e desaparece silenciosamente.
+// O Baileys sabe enviar mensagens directamente para JIDs @lid — não
+// precisamos de converter nada. Mantemos o JID original sempre.
+function getReplyJid(rawJid) {
+  return rawJid; // usar sempre o JID original, seja @lid, @s.whatsapp.net ou @g.us
 }
 
 export async function handleMessage(sock, msg) {
   await loadCommands();
 
   const rawJid    = msg.key.remoteJid;
-  const jid       = await getReplyJid(sock, rawJid); // JID para responder — resolvido de @lid quando possível
+  const jid       = getReplyJid(rawJid);     // JID para responder — NUNCA convertido
   const rawSender = getSender(msg);
   const sender    = rawSender;               // idem para o sender
   const isGroup   = rawJid.endsWith("@g.us");
   const body      = extractText(msg.message).trim();
 
   if (!body) return;
+
+  // Sessão activa da Bug Shop (.produtos) — uma resposta SEM prefixo
+  // (ex: "1", "0", ou o ID do Free Fire) só é reencaminhada para lá se
+  // o utilizador tiver mesmo um fluxo de compra em curso. Qualquer
+  // comando normal (que começa por PREFIX) continua a ter sempre
+  // prioridade e funciona à mesma durante uma compra em curso.
+  if (!body.startsWith(PREFIX) && isBotEnabled() && getSession(sender)) {
+    try {
+      const replyText = handleBugshopInput(
+        { userJid: sender, customerName: msg.pushName || null, messageId: msg.key?.id || null },
+        body
+      );
+      if (replyText) await sock.sendMessage(jid, { text: replyText }, { quoted: msg });
+    } catch (err) {
+      console.error("[bugshop] erro ao processar resposta:", err.message);
+    }
+    return;
+  }
+
   if (!body.startsWith(PREFIX)) return;
 
   const [rawCmd, ...args] = body.slice(PREFIX.length).trim().split(/\s+/);
@@ -111,7 +117,7 @@ export async function handleMessage(sock, msg) {
   // Gate global .on/.off — enquanto desligado, o bot ignora TUDO em
   // silêncio, excepto ".on" vindo do próprio dono (senão nunca haveria
   // forma de o religar).
-  if (!isBotEnabled() && !(cmdName === "on" && (await isOwner(rawSender, sock)))) {
+  if (!isBotEnabled() && !(cmdName === "on" && await isOwner(rawSender, sock))) {
     return;
   }
 
