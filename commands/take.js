@@ -2,9 +2,21 @@
  * Comando: .take
  * Altera o nome do pacote (autor) do sticker para o nome de quem usou o comando.
  * Responde a um sticker com .take
+ *
+ * CAUSA DO BUG ANTERIOR ("sticker vem vazio"): duas causas reais.
+ *   1. sharp(buf) sem { animated: true } só lê o 1º frame de um webp
+ *      animado — em muitos stickers animados esse frame é só a base
+ *      transparente da animação, o que produzia um sticker em branco.
+ *   2. withMetadata({ exif: { IFD0: {...} } }) escreve EXIF fotográfico
+ *      normal — o WhatsApp NÃO lê isso para o nome do pacote/autor. O
+ *      WhatsApp usa um formato de EXIF próprio (JSON com "sticker-pack-
+ *      name"/"sticker-pack-publisher"), que o sharp sozinho não escreve.
+ *
+ * FIX: usa "wa-sticker-formatter" (já usada por muitos bots Baileys) —
+ * trata da animação e do EXIF correcto num só passo.
  */
 import { downloadMediaMessage } from "@whiskeysockets/baileys";
-import sharp from "sharp";
+import { Sticker, StickerTypes } from "wa-sticker-formatter";
 
 export default {
   name: "take",
@@ -23,7 +35,6 @@ export default {
     }
 
     const numero = sender.split("@")[0];
-
     console.log(`[take] A processar sticker para: ${numero}`);
 
     const loggerSilent = { info: () => {}, error: console.error, warn: () => {} };
@@ -49,21 +60,16 @@ export default {
 
       if (!buf || buf.length === 0) throw new Error("Falha ao descarregar sticker");
 
-      // Re-processa o sticker com sharp para WebP, incorporando metadados de exif
-      // com o nome de autor actualizado. O WhatsApp lê o campo "author" dos
-      // metadados exif do WebP para mostrar o nome do pacote.
-      const output = await sharp(buf)
-        .webp({ quality: 90 })
-        .withMetadata({
-          exif: {
-            IFD0: {
-              ImageDescription: numero,
-              Artist: numero,
-              Software: "WAI Bot",
-            }
-          }
-        })
-        .toBuffer();
+      // wa-sticker-formatter trata da animação (mantém todos os frames)
+      // e escreve o EXIF no formato que o WhatsApp realmente lê.
+      const sticker = new Sticker(buf, {
+        pack: "WAI Bot",
+        author: numero,
+        type: StickerTypes.FULL,
+        quality: 90,
+      });
+
+      const output = await sticker.toBuffer();
 
       await sock.sendMessage(jid, { sticker: output }, { quoted: msg });
       console.log(`[take] ✅ sticker reenviado com autor "${numero}"`);

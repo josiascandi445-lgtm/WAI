@@ -14,12 +14,21 @@ export default {
     const ctx     = msg.message?.extendedTextMessage?.contextInfo;
     const quoted  = ctx?.quotedMessage;
 
-    // Detecta viewOnce em qualquer variante
-    const viewOnce =
+    // Detecta viewOnce em qualquer variante — incluindo a forma SEM
+    // wrapper, onde a mensagem chega como um imageMessage/videoMessage
+    // normal mas com a flag "viewOnce: true" directamente nele (cada vez
+    // mais comum em versões recentes do WhatsApp). As 3 formas com
+    // wrapper (viewOnceMessage/V2/V2Extension) continuam suportadas.
+    let viewOnce =
       quoted?.viewOnceMessage?.message ||
       quoted?.viewOnceMessageV2?.message ||
       quoted?.viewOnceMessageV2Extension?.message ||
       null;
+
+    if (!viewOnce && quoted) {
+      if (quoted.imageMessage?.viewOnce) viewOnce = { imageMessage: quoted.imageMessage };
+      else if (quoted.videoMessage?.viewOnce) viewOnce = { videoMessage: quoted.videoMessage };
+    }
 
     if (!viewOnce) {
       return sock.sendMessage(jid, {
