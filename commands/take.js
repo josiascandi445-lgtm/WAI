@@ -34,8 +34,14 @@ export default {
       }, { quoted: msg });
     }
 
+    // FIX: usava sempre o número (sender.split("@")[0]) — para JIDs @lid
+    // isso nem sequer é um número de telefone real, daí parecer "estranho".
+    // Agora usa o nome de exibição real do WhatsApp (pushName), que o
+    // Baileys entrega sempre em quem enviou a mensagem. Só cai para o
+    // número formatado se por algum motivo o pushName não vier.
     const numero = sender.split("@")[0];
-    console.log(`[take] A processar sticker para: ${numero}`);
+    const autor = msg.pushName || `+${numero}`;
+    console.log(`[take] A processar sticker para: ${autor}`);
 
     const loggerSilent = { info: () => {}, error: console.error, warn: () => {} };
 
@@ -64,7 +70,7 @@ export default {
       // e escreve o EXIF no formato que o WhatsApp realmente lê.
       const sticker = new Sticker(buf, {
         pack: "WAI Bot",
-        author: numero,
+        author: autor,
         type: StickerTypes.FULL,
         quality: 90,
       });
@@ -72,7 +78,7 @@ export default {
       const output = await sticker.toBuffer();
 
       await sock.sendMessage(jid, { sticker: output }, { quoted: msg });
-      console.log(`[take] ✅ sticker reenviado com autor "${numero}"`);
+      console.log(`[take] ✅ sticker reenviado com autor "${autor}"`);
 
     } catch (err) {
       console.error(`[take] erro: ${err.message}`);
